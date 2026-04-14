@@ -7,9 +7,12 @@ export interface User {
   user_type: 'student' | 'admin';
   full_name?: string;
   email?: string;
+  username?: string;
   date_joined?: string;
   last_login?: string;
   is_active?: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
 }
 
 export interface AttendanceRecord {
@@ -50,6 +53,7 @@ export interface LoginResponse {
 
 export interface ApiError {
   error: string;
+  message?: string;
   [key: string]: any;
 }
 
@@ -59,5 +63,3 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
-
-

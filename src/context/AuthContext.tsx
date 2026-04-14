@@ -34,20 +34,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = localStorage.getItem('access_token');
     
     if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Failed to parse user from localStorage:', error);
+      }
     }
     setIsLoading(false);
   }, []);
 
   const login = async (phone: string, password: string) => {
     try {
-      const response = await authApi.login(phone, password);
+      const response: LoginResponse = await authApi.login(phone, password);
       localStorage.setItem('access_token', response.access);
       localStorage.setItem('refresh_token', response.refresh);
       localStorage.setItem('user', JSON.stringify(response.user));
       setUser(response.user);
       toast.success('Welcome back!');
     } catch (error) {
+      console.error('Login error:', error);
       throw error;
     }
   };
@@ -70,26 +75,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (userData: any) => {
-    const response = await authApi.register(userData);
-    localStorage.setItem('access_token', response.access);
-    localStorage.setItem('refresh_token', response.refresh);
-    localStorage.setItem('user', JSON.stringify(response.user));
-    setUser(response.user);
-    toast.success('Registration successful!');
+    try {
+      const response: LoginResponse = await authApi.register(userData);
+      localStorage.setItem('access_token', response.access);
+      localStorage.setItem('refresh_token', response.refresh);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setUser(response.user);
+      toast.success('Registration successful!');
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
   };
 
   const changePassword = async (oldPassword: string, newPassword: string, confirmPassword: string) => {
-    const response = await authApi.changePassword(oldPassword, newPassword, confirmPassword);
-    localStorage.setItem('access_token', response.access);
-    localStorage.setItem('refresh_token', response.refresh);
-    toast.success('Password changed successfully');
+    try {
+      const response: any = await authApi.changePassword(oldPassword, newPassword, confirmPassword);
+      localStorage.setItem('access_token', response.access);
+      localStorage.setItem('refresh_token', response.refresh);
+      toast.success('Password changed successfully');
+    } catch (error) {
+      console.error('Password change error:', error);
+      throw error;
+    }
   };
 
   const updateProfile = async (data: Partial<User>) => {
-    const updatedUser = await authApi.updateProfile(data);
-    setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    toast.success('Profile updated successfully');
+    try {
+      const updatedUser: User = await authApi.updateProfile(data);
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      console.error('Profile update error:', error);
+      throw error;
+    }
   };
 
   const isAdmin = user?.user_type === 'admin';

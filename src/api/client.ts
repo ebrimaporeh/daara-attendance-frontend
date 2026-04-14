@@ -1,6 +1,6 @@
 import { Navigate } from '@tanstack/react-router';
 
-const baseURL = 'http://localhost:8000/'
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 class ApiClient {
   private baseURL: string;
@@ -108,4 +108,4 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient('http://localhost:8000/api');
+export const apiClient = new ApiClient(baseURL);

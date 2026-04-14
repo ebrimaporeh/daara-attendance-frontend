@@ -2,19 +2,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/api/auth';
 import { useRouter } from '@tanstack/react-router';
 import toast from 'react-hot-toast';
+import { LoginResponse, User } from '@/types';
 
 export const useAuth = () => {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const { data: user, isLoading } = useQuery({
+  const { data: user, isLoading } = useQuery<User | null>({
     queryKey: ['user'],
     queryFn: async () => {
       const token = localStorage.getItem('access_token');
       if (!token) return null;
       
       try {
-        const userData = await authApi.getProfile();
+        const userData: User = await authApi.getProfile();
         return userData;
       } catch (error) {
         localStorage.removeItem('access_token');
@@ -26,17 +27,15 @@ export const useAuth = () => {
     staleTime: Infinity,
   });
 
-  const loginMutation = useMutation({
-    mutationFn: ({ phone, password }: { phone: string; password: string }) =>
-      authApi.login(phone, password),
-    onSuccess: (data) => {
+  const loginMutation = useMutation<LoginResponse, Error, { phone: string; password: string }>({
+    mutationFn: ({ phone, password }) => authApi.login(phone, password),
+    onSuccess: (data: LoginResponse) => {
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
       localStorage.setItem('user', JSON.stringify(data.user));
       queryClient.setQueryData(['user'], data.user);
       toast.success('Welcome back!');
       
-      // Navigate based on user type
       if (data.user.user_type === 'admin') {
         router.navigate({ to: '/admin' });
       } else {
@@ -48,16 +47,15 @@ export const useAuth = () => {
     },
   });
 
-  const registerMutation = useMutation({
-    mutationFn: (userData: any) => authApi.register(userData),
-    onSuccess: (data) => {
+  const registerMutation = useMutation<LoginResponse, Error, any>({
+    mutationFn: (userData) => authApi.register(userData),
+    onSuccess: (data: LoginResponse) => {
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
       localStorage.setItem('user', JSON.stringify(data.user));
       queryClient.setQueryData(['user'], data.user);
       toast.success('Registration successful! Welcome to An-Namuslimah!');
       
-      // Navigate based on user type
       if (data.user.user_type === 'admin') {
         router.navigate({ to: '/admin' });
       } else {
@@ -69,13 +67,12 @@ export const useAuth = () => {
     },
   });
 
-  const logoutMutation = useMutation({
-    mutationFn: () => {
+  const logoutMutation = useMutation<void, Error, void>({
+    mutationFn: async () => {
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
-        return authApi.logout(refreshToken);
+        await authApi.logout(refreshToken);
       }
-      return Promise.resolve();
     },
     onSuccess: () => {
       localStorage.removeItem('access_token');
@@ -87,10 +84,10 @@ export const useAuth = () => {
     },
   });
 
-  const changePasswordMutation = useMutation({
-    mutationFn: ({ oldPassword, newPassword, confirmPassword }: any) =>
+  const changePasswordMutation = useMutation<any, Error, any>({
+    mutationFn: ({ oldPassword, newPassword, confirmPassword }) =>
       authApi.changePassword(oldPassword, newPassword, confirmPassword),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
       toast.success('Password changed successfully');
@@ -100,9 +97,9 @@ export const useAuth = () => {
     },
   });
 
-  const updateProfileMutation = useMutation({
-    mutationFn: (data: any) => authApi.updateProfile(data),
-    onSuccess: (updatedUser) => {
+  const updateProfileMutation = useMutation<User, Error, any>({
+    mutationFn: (data) => authApi.updateProfile(data),
+    onSuccess: (updatedUser: User) => {
       queryClient.setQueryData(['user'], updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
       toast.success('Profile updated successfully');
