@@ -19,9 +19,9 @@ const navItems = [
   { path: ROUTES.ADMIN_STUDENTS, label: 'Students', icon: Users },
   { path: ROUTES.ADMIN_ATTENDANCE, label: 'Attendance', icon: CalendarCheck },
   { path: ROUTES.ADMIN_MARK_ATTENDANCE, label: 'Mark', icon: PenSquare },
-  { path: ROUTES.ADMIN_REPORTS, label: 'Reports', icon: BarChart3 },
+  // { path: ROUTES.ADMIN_REPORTS, label: 'Reports', icon: BarChart3 },
   { path: ROUTES.ADMIN_PROFILE, label: 'Profile', icon: User },
-  { path: ROUTES.ADMIN_SETTINGS, label: 'Settings', icon: Settings },
+  // { path: ROUTES.ADMIN_SETTINGS, label: 'Settings', icon: Settings },
 ];
 
 export const AdminMobileNav: React.FC = () => {
@@ -62,13 +62,13 @@ export const AdminMobileNav: React.FC = () => {
           ))}
           
           {/* More Menu Button */}
-          <button
+          {/* <button
             onClick={() => setShowLogout(!showLogout)}
             className="flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-all duration-200 text-muted active:scale-95"
           >
             <Settings size={20} />
             <span className="text-xs mt-1">More</span>
-          </button>
+          </button> */}
         </div>
       </motion.nav>
 
