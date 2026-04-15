@@ -7,7 +7,10 @@ import { StudentLayout } from '../../components/Layout/StudentLayout';
 
 // Student pages
 // import StudentDashboard from '@/pages/student/Dashboard';
-import { StudentDashboard } from '../../pages/student/StudentDashboard';
+
+import StudentDashboard from '../../pages/student/StudentDashboard';
+import StudentProfile from '@/pages/student/StudentProfilePage';
+import StudentAttendance from '@/pages/student/StudentAttendancePage.';
 
 // import StudentAttendance from '@/pages/student/Attendance';
 // import StudentProfile from '@/pages/student/Profile';
@@ -28,11 +31,11 @@ export const studentDashboardRoute = createRoute({
 });
 
 // ---------- Attendance ----------
-// export const studentAttendanceRoute = createRoute({
-//   getParentRoute: () => studentLayoutRoute,
-//   path: 'attendance',
-//   component: StudentAttendance,
-// });
+export const studentAttendanceRoute = createRoute({
+  getParentRoute: () => studentLayoutRoute,
+  path: 'attendance',
+  component: StudentAttendance,
+});
 
 // export const studentAttendanceDetailRoute = createRoute({
 //   getParentRoute: () => studentLayoutRoute,
@@ -41,16 +44,17 @@ export const studentDashboardRoute = createRoute({
 // });
 
 // // ---------- Profile ----------
-// export const studentProfileRoute = createRoute({
-//   getParentRoute: () => studentLayoutRoute,
-//   path: 'profile',
-//   component: StudentProfile,
-// });
+export const studentProfileRoute = createRoute({
+  getParentRoute: () => studentLayoutRoute,
+  path: 'profile',
+  component: StudentProfile,
+});
 
 // Export all student child routes
 export const studentChildRoutes = [
   studentDashboardRoute,
-//   studentAttendanceRoute,
+  studentProfileRoute,
+  studentAttendanceRoute,
 //   studentAttendanceDetailRoute,
 //   studentProfileRoute,
 ];

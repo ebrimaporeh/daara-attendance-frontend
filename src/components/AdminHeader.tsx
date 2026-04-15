@@ -76,18 +76,7 @@ export const AdminHeader: React.FC = () => {
                     </Link>
                   )}
                 </Menu.Item>
-                <Menu.Item>
-                  {({ active }) => (
-                    <Link
-                      to={ROUTES.ADMIN_SETTINGS}
-                      className={`block px-4 py-2 text-sm ${
-                        active ? 'bg-surface-hover text-foreground' : 'text-muted'
-                      }`}
-                    >
-                      System Settings
-                    </Link>
-                  )}
-                </Menu.Item>
+               
                 <div className="border-t border-border my-1"></div>
                 <Menu.Item>
                   {({ active }) => (

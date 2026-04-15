@@ -48,10 +48,10 @@ export const StudentHeader: React.FC = () => {
               <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
                 <User className="h-5 w-5 text-primary-600 dark:text-primary-400" />
               </div>
-              <span className="text-foreground font-medium">
+              <span className="text-foreground font-medium hidden md:inline">
                 {user?.first_name} {user?.last_name}
               </span>
-              <ChevronDown size={16} className="text-muted" />
+              <ChevronDown size={16} className="text-muted hidden md:inline" />
             </Menu.Button>
 
             <Transition

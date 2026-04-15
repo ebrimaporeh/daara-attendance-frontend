@@ -82,14 +82,15 @@ const AdminDashboard: React.FC = () => {
         <p className="text-muted mt-1">Overview of school attendance</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
           <motion.div
             key={index}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-surface rounded-xl shadow-sm p-6 border border-border"
+            className="bg-surface rounded-xl shadow-sm p-6 border border-border hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -106,44 +107,113 @@ const AdminDashboard: React.FC = () => {
         ))}
       </div>
 
+      {/* Recent Activity & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Activity Card */}
         <div className="bg-surface rounded-xl shadow-sm p-6 border border-border">
           <h2 className="text-xl font-semibold text-foreground mb-4">Recent Activity</h2>
           <div className="space-y-3">
             {todayAttendance?.records?.slice(0, 5).map((record) => (
-              <div key={record.id} className="flex justify-between items-center p-3 bg-background rounded-lg">
+              <div 
+                key={record.id} 
+                className="flex justify-between items-center p-3 bg-background rounded-lg hover:bg-surface-hover transition-colors"
+              >
                 <div>
                   <p className="font-medium text-foreground">{record.student_name}</p>
                   <p className="text-sm text-muted">{record.date}</p>
                 </div>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  record.status === 'present' ? 'bg-green-100 text-green-800 dark:bg-green-950/30 dark:text-green-300' :
-                  record.status === 'absent' ? 'bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-300' :
-                  'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300'
+                  record.status === 'present' 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-950/30 dark:text-green-300' 
+                    : record.status === 'absent' 
+                      ? 'bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-300'
+                      : record.status === 'late'
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300'
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-950/30 dark:text-gray-300'
                 }`}>
-                  {record.status}
+                  {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
                 </span>
               </div>
             ))}
             {(!todayAttendance?.records || todayAttendance.records.length === 0) && (
-              <p className="text-center text-muted py-8">No recent activity</p>
+              <div className="text-center text-muted py-8">
+                <CalendarCheck className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No recent activity</p>
+                <Link to="/admin/attendance/mark" className="text-primary-600 text-sm mt-2 inline-block">
+                  Mark attendance now →
+                </Link>
+              </div>
             )}
           </div>
         </div>
 
+        {/* Quick Actions Card */}
         <div className="bg-surface rounded-xl shadow-sm p-6 border border-border">
           <h2 className="text-xl font-semibold text-foreground mb-4">Quick Actions</h2>
           <div className="space-y-3">
-            <Link to="/admin/attendance/mark" className="btn btn-primary w-full justify-center">
+            <Link 
+              to="/admin/attendance/mark" 
+              className="btn btn-primary w-full justify-center flex items-center gap-2"
+            >
+              <CalendarCheck size={18} />
               Mark Today's Attendance
             </Link>
-            <Link to="/admin/reports" className="btn btn-secondary w-full justify-center">
-              View Attendance Reports
+            <Link 
+              to="/admin/attendance" 
+              className="btn btn-secondary w-full justify-center flex items-center gap-2"
+            >
+              <TrendingUp size={18} />
+              View Attendance Records
             </Link>
-            <Link to="/admin/students" className="btn btn-secondary w-full justify-center">
+            <Link 
+              to="/admin/students" 
+              className="btn btn-secondary w-full justify-center flex items-center gap-2"
+            >
+              <Users size={18} />
               Manage Students
             </Link>
           </div>
+          
+          {/* Quick Stats Footer */}
+          <div className="mt-6 pt-4 border-t border-border">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-primary-600">
+                  {todayAttendance?.summary?.attendance_rate || 0}%
+                </p>
+                <p className="text-xs text-muted">Today's Attendance</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-success-600">
+                  {todayAttendance?.summary?.present || 0}
+                </p>
+                <p className="text-xs text-muted">Present Today</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Info Card - Optional */}
+      <div className="bg-linear-to-r from-primary-50 to-primary-100 dark:from-primary-950/30 dark:to-primary-900/30 rounded-xl p-6 border border-primary-200 dark:border-primary-800">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary-600 p-3 rounded-full">
+              <Award className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Quick Tip</h3>
+              <p className="text-sm text-muted">
+                Use the "Mark Attendance" button to quickly record daily attendance for all students.
+              </p>
+            </div>
+          </div>
+          <Link 
+            to="/admin/attendance/mark" 
+            className="btn btn-primary whitespace-nowrap"
+          >
+            Mark Now
+          </Link>
         </div>
       </div>
     </div>

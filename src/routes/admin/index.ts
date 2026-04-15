@@ -15,8 +15,8 @@ import MarkAttendance from '@/pages/admin/MarkAttendancePage';
 import AdminAttendancePage from '@/pages/admin/AdminAttendancePage';
 import AdminStudentsPage from '@/pages/admin/AdminStudents';
 import AdminStudentDetailPage from '@/pages/admin/AdminStudentDetail';
+import AdminProfile from '@/pages/admin/AdminProfile';
 // import AdminReports from '@/pages/admin/Reports';
-// import AdminProfile from '@/pages/admin/Profile';
 // import AdminSettings from '@/pages/admin/Settings';
 // import StudentDetailPage from '@/pages/admin/StudentDetailPage';
 // import EditAttendancePage from '@/pages/admin/EditAttendancePage';
@@ -100,11 +100,11 @@ export const adminStudentDetailRoute = createRoute({
 // });
 
 // // ---------- Profile & Settings ----------
-// export const adminProfileRoute = createRoute({
-//   getParentRoute: () => adminLayoutRoute,
-//   path: 'profile',
-//   component: AdminProfile,
-// });
+export const adminProfileRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: 'profile',
+  component: AdminProfile,
+});
 
 // export const adminSettingsRoute = createRoute({
 //   getParentRoute: () => adminLayoutRoute,
@@ -118,13 +118,13 @@ export const adminChildRoutes = [
   adminMarkAttendancedRoute,
   adminAttendancedRoute,
   adminStudentsRoute,
-  adminStudentDetailRoute
+  adminStudentDetailRoute,
 //   adminStudentsRoute,
 //   adminStudentDetailRoute,
 //   adminAttendanceRoute,
 //   adminMarkAttendanceRoute,
 //   adminEditAttendanceRoute,
 //   adminReportsRoute,
-//   adminProfileRoute,
+  adminProfileRoute,
 //   adminSettingsRoute,
 ];

@@ -65,7 +65,7 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-primary-100 to-primary-200 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-linear-to-br from-primary-50 via-primary-100 to-primary-200 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" />
@@ -85,48 +85,48 @@ const LoginPage: React.FC = () => {
             <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
               <div className="flex items-center space-x-4 mb-6">
                 <div className="bg-white/20 p-3 rounded-xl">
-                  <School className="h-8 w-8 text-white" />
+                  <School className="h-8 w-8 text-primary-600" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">An-Namuslimah</h2>
-                  <p className="text-primary-100">School Management System</p>
+                  <h2 className="text-2xl font-bold text-primary-600">An-Namuslimah</h2>
+                  <p className="text-primary-300">School Management System</p>
                 </div>
               </div>
               
               <div className="space-y-4">
                 <div className="flex items-start space-x-3">
                   <div className="bg-white/20 p-2 rounded-lg mt-1">
-                    <Shield className="h-5 w-5 text-white" />
+                    <Shield className="h-5 w-5 text-primary-300" />
                   </div>
                   <div>
-                    <h3 className="text-white font-semibold">Secure Access</h3>
-                    <p className="text-primary-100 text-sm">Your data is protected with enterprise-grade security</p>
+                    <h3 className="text-primary-600 font-semibold">Secure Access</h3>
+                    <p className="text-primary-300 text-sm">Your data is protected with enterprise-grade security</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start space-x-3">
                   <div className="bg-white/20 p-2 rounded-lg mt-1">
-                    <Users className="h-5 w-5 text-white" />
+                    <Users className="h-5 w-5 text-primary-600" />
                   </div>
                   <div>
-                    <h3 className="text-white font-semibold">Role-Based Access</h3>
-                    <p className="text-primary-100 text-sm">Different portals for students, teachers, and admins</p>
+                    <h3 className="text-primary-600 font-semibold">Role-Based Access</h3>
+                    <p className="text-primary-300 text-sm">Different portals for students, teachers, and admins</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start space-x-3">
                   <div className="bg-white/20 p-2 rounded-lg mt-1">
-                    <BookOpen className="h-5 w-5 text-white" />
+                    <BookOpen className="h-5 w-5 text-primary-600" />
                   </div>
                   <div>
-                    <h3 className="text-white font-semibold">Track Progress</h3>
-                    <p className="text-primary-100 text-sm">Monitor attendance and academic performance</p>
+                    <h3 className="text-primary-600 font-semibold">Track Progress</h3>
+                    <p className="text-primary-300 text-sm">Monitor attendance and academic performance</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="text-center text-white/80 text-sm">
+            <div className="text-center text-primary-300 text-sm">
               <p>© {new Date().getFullYear()} An-Namuslimah. All rights reserved.</p>
             </div>
           </motion.div>
