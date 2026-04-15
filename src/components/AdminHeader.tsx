@@ -9,7 +9,7 @@ import { useTheme } from '@/hooks/useTheme';
 export const AdminHeader: React.FC = () => {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const { theme, toggleTheme } = useTheme();
+  // const { theme, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
     await logout();
@@ -28,13 +28,13 @@ export const AdminHeader: React.FC = () => {
 
         <div className="flex items-center space-x-4">
           {/* Theme Toggle */}
-          <button
+          {/* <button
             onClick={toggleTheme}
             className="p-2 rounded-lg text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
             aria-label="Toggle theme"
           >
             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-          </button>
+          </button> */}
 
           {/* Notifications */}
           <button className="relative p-2 rounded-lg text-muted hover:text-foreground hover:bg-surface-hover transition-colors">
