@@ -35,8 +35,6 @@ import { z } from 'zod';
 import toast from 'react-hot-toast';
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -110,9 +108,13 @@ const AdminProfile: React.FC = () => {
     }
   };
 
+  // FIXED: changePassword expects an object with oldPassword and newPassword
   const handlePasswordChange = async (data: ChangePasswordFormData) => {
     try {
-      await changePassword(data.old_password, data.new_password);
+      await changePassword({
+        oldPassword: data.old_password,
+        newPassword: data.new_password
+      });
       setIsChangingPassword(false);
       reset();
       toast.success('Password changed successfully');
@@ -624,8 +626,8 @@ const AdminProfile: React.FC = () => {
                 <div className="text-2xl font-bold text-warning-600">156</div>
                 <div className="text-xs text-muted">Active Users</div>
               </div>
-              <div className="text-center p-3 bg-info-50 dark:bg-info-950/30 rounded-lg">
-                <div className="text-2xl font-bold text-info-600">98%</div>
+              <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">98%</div>
                 <div className="text-xs text-muted">Satisfaction</div>
               </div>
             </div>
@@ -721,14 +723,6 @@ const AdminProfile: React.FC = () => {
               </div>
             </motion.div>
           </>
-        )}
-      </AnimatePresence>
-
-      {/* Logout Confirmation Modal */}
-      <AnimatePresence>
-        {isChangingPassword && activeTab === 'security' && (
-          // Password change modal is already handled above
-          null
         )}
       </AnimatePresence>
     </div>
