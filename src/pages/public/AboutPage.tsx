@@ -30,7 +30,7 @@ const AboutPage: React.FC = () => {
       >
         <h1 className="text-4xl font-bold text-gray-900 mb-4">About Us</h1>
         <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-          An-Namuslimah is dedicated to providing authentic Islamic education and
+          Ana-Muslimah is dedicated to providing authentic Islamic education and
           Quran memorization programs for students of all ages.
         </p>
       </motion.div>

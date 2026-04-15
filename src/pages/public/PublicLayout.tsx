@@ -37,7 +37,7 @@ export const PublicLayout: React.FC = () => {
                 <School className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-800">An-Namuslimah</h1>
+                <h1 className="text-xl font-bold text-gray-800">Ana-Muslimah</h1>
                 <p className="text-xs text-gray-500">School Management System</p>
               </div>
             </Link>
@@ -148,7 +148,7 @@ export const PublicLayout: React.FC = () => {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <School className="h-6 w-6 text-primary-400" />
-                <h3 className="text-lg font-semibold">An-Namuslimah</h3>
+                <h3 className="text-lg font-semibold">Ana-Muslimah</h3>
               </div>
               <p className="text-gray-400 text-sm">
                 Dedicated to providing quality Islamic education and Quran memorization.
@@ -207,7 +207,7 @@ export const PublicLayout: React.FC = () => {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400 text-sm">
-            <p>&copy; {new Date().getFullYear()} An-Namuslimah. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} Ana-Muslimah. All rights reserved.</p>
           </div>
         </div>
       </footer>

@@ -56,7 +56,7 @@ export const useAuth = () => {
       localStorage.setItem("refresh_token", data.refresh);
       localStorage.setItem("user", JSON.stringify(data.user));
       queryClient.setQueryData(["user"], data.user);
-      toast.success("Registration successful! Welcome to An-Namuslimah!");
+      toast.success("Registration successful! Welcome to Ana-Muslimah!");
 
       if (data.user.user_type === "admin") {
         router.navigate({ to: "/admin" });

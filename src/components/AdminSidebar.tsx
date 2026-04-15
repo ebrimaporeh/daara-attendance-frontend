@@ -62,7 +62,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ onClose }) => {
             <School className="h-6 w-6 text-primary-600 dark:text-primary-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">An-Namuslimah</h1>
+            <h1 className="text-xl font-bold text-foreground">Ana-Muslimah</h1>
             <p className="text-xs text-muted">Admin Portal</p>
           </div>
         </div>

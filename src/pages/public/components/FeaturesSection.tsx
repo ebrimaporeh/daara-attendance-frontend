@@ -66,7 +66,7 @@ export const FeaturesSection: React.FC = () => {
             className="text-3xl md:text-4xl font-bold text-gray-900"
           >
             Why Choose{' '}
-            <span className="text-primary-600">An-Namuslimah</span>
+            <span className="text-primary-600">Ana-Muslimah</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}

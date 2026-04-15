@@ -29,7 +29,7 @@ export const HeroSection: React.FC = () => {
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
               Welcome to{' '}
-              <span className="text-primary-600">An-Namuslimah</span>
+              <span className="text-primary-600">Ana-Muslimah</span>
             </h1>
             <p className="mt-4 text-lg text-gray-600">
               A traditional Islamic memorization school dedicated to nurturing 

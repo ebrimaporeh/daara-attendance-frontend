@@ -82,7 +82,7 @@ export const AdminLayout: React.FC = () => {
                   </span>
                 </div>
                 <span className="font-semibold text-foreground text-sm">
-                  An-Namuslimah
+                  Ana-Muslimah
                 </span>
               </div>
               <div className="w-10" />

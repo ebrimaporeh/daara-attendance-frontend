@@ -56,7 +56,7 @@ const RegisterPage: React.FC = () => {
         <div className="bg-primary-600 p-6 text-center">
           <School className="h-12 w-12 text-white mx-auto mb-2" />
           <h1 className="text-2xl font-bold text-white">Create Account</h1>
-          <p className="text-primary-100 mt-1">Join An-Namuslimah School Management System</p>
+          <p className="text-primary-100 mt-1">Join Ana-Muslimah School Management System</p>
         </div>
 
         <div className="p-8">
