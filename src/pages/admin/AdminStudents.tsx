@@ -68,9 +68,6 @@ type StudentFormData = {
   confirm_password: string;
 };
 
-const studentFormSchema = registerSchema.extend({
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
-});
 
 const AdminStudentsPage: React.FC = () => {
   const queryClient = useQueryClient();

@@ -37,7 +37,7 @@ export const adminDashboardRoute = createRoute({
 
 export const adminMarkAttendancedRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: '/attendance/mark',
+  path: '/mark',
   component: MarkAttendance,
 });
 

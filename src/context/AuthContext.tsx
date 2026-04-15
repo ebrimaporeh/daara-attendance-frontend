@@ -44,72 +44,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (phone: string, password: string) => {
-    try {
-      const response: LoginResponse = await authApi.login(phone, password);
-      localStorage.setItem('access_token', response.access);
-      localStorage.setItem('refresh_token', response.refresh);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
-      toast.success('Welcome back!');
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
+    const response: LoginResponse = await authApi.login(phone, password);
+    localStorage.setItem('access_token', response.access);
+    localStorage.setItem('refresh_token', response.refresh);
+    localStorage.setItem('user', JSON.stringify(response.user));
+    setUser(response.user);
+    toast.success('Welcome back!');
   };
 
   const logout = async () => {
-    try {
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (refreshToken) {
-        await authApi.logout(refreshToken);
-      }
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      setUser(null);
-      toast.success('Logged out successfully');
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (refreshToken) {
+      await authApi.logout(refreshToken).catch(console.error);
     }
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    setUser(null);
+    toast.success('Logged out successfully');
   };
 
   const register = async (userData: any) => {
-    try {
-      const response: LoginResponse = await authApi.register(userData);
-      localStorage.setItem('access_token', response.access);
-      localStorage.setItem('refresh_token', response.refresh);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
-      toast.success('Registration successful!');
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    }
+    const response: LoginResponse = await authApi.register(userData);
+    localStorage.setItem('access_token', response.access);
+    localStorage.setItem('refresh_token', response.refresh);
+    localStorage.setItem('user', JSON.stringify(response.user));
+    setUser(response.user);
+    toast.success('Registration successful!');
   };
 
   const changePassword = async (oldPassword: string, newPassword: string, confirmPassword: string) => {
-    try {
-      const response: any = await authApi.changePassword(oldPassword, newPassword, confirmPassword);
-      localStorage.setItem('access_token', response.access);
-      localStorage.setItem('refresh_token', response.refresh);
-      toast.success('Password changed successfully');
-    } catch (error) {
-      console.error('Password change error:', error);
-      throw error;
-    }
+    const response: any = await authApi.changePassword(oldPassword, newPassword, confirmPassword);
+    localStorage.setItem('access_token', response.access);
+    localStorage.setItem('refresh_token', response.refresh);
+    toast.success('Password changed successfully');
   };
 
   const updateProfile = async (data: Partial<User>) => {
-    try {
-      const updatedUser: User = await authApi.updateProfile(data);
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      toast.success('Profile updated successfully');
-    } catch (error) {
-      console.error('Profile update error:', error);
-      throw error;
-    }
+    const updatedUser: User = await authApi.updateProfile(data);
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    toast.success('Profile updated successfully');
   };
 
   const isAdmin = user?.user_type === 'admin';

@@ -20,7 +20,7 @@ const navItems = [
   { path: ROUTES.ADMIN_DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
   { path: ROUTES.ADMIN_STUDENTS, label: 'Students', icon: Users },
   { path: ROUTES.ADMIN_ATTENDANCE, label: 'Attendance', icon: CalendarCheck },
-  { path: ROUTES.ADMIN_MARK_ATTENDANCE, label: 'Mark Attendance', icon: PenSquare },
+  { path: ROUTES.ADMIN_MARK_ATTENDANCE, label: 'Mark', icon: PenSquare },
   { path: ROUTES.ADMIN_REPORTS, label: 'Reports', icon: BarChart3 },
   { path: ROUTES.ADMIN_PROFILE, label: 'Profile', icon: User },
   { path: ROUTES.ADMIN_SETTINGS, label: 'Settings', icon: Settings },

@@ -14,7 +14,7 @@ export const ROUTES = {
   ADMIN_STUDENTS: '/admin/students',
   ADMIN_STUDENT_DETAIL: '/admin/students/$id',
   ADMIN_ATTENDANCE: '/admin/attendance',
-  ADMIN_MARK_ATTENDANCE: '/admin/attendance/mark',
+  ADMIN_MARK_ATTENDANCE: '/admin/mark',
   ADMIN_EDIT_ATTENDANCE: '/admin/attendance/$id/edit',
   ADMIN_REPORTS: '/admin/reports',
   ADMIN_PROFILE: '/admin/profile',

@@ -6,9 +6,9 @@ export const authApi = {
     return apiClient.post('/login/', { phone, password });
   },
 
-  register: (userData: Partial<User> & { password: string; confirm_password: string }) => {
-    return apiClient.post('/register/', userData);
-  },
+  register: (userData: any): Promise<LoginResponse> => {
+  return apiClient.post('/register/', userData);
+},
 
   logout: (refreshToken: string) => {
     return apiClient.post('/users/logout/', { refresh_token: refreshToken });

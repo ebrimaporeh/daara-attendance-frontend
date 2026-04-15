@@ -1,7 +1,3 @@
-import { Navigate } from '@tanstack/react-router';
-
-const baseURL = import.meta.env.VITE_API_BASE_URL;
-
 class ApiClient {
   private baseURL: string;
 
@@ -15,13 +11,17 @@ class ApiClient {
   ): Promise<T> {
     const token = localStorage.getItem('access_token');
     
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
     };
 
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Merge with any additional headers from options
+    if (options.headers) {
+      Object.assign(headers, options.headers);
     }
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
@@ -30,7 +30,6 @@ class ApiClient {
     });
 
     if (response.status === 401) {
-      // Try to refresh token
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
         try {
@@ -44,7 +43,6 @@ class ApiClient {
             const { access } = await refreshResponse.json();
             localStorage.setItem('access_token', access);
             
-            // Retry original request
             const retryResponse = await fetch(`${this.baseURL}${endpoint}`, {
               ...options,
               headers: {
@@ -62,20 +60,24 @@ class ApiClient {
         }
       }
       
-      // Redirect to login
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user');
-      Navigate({ to: '/login' });
-      throw new Error('Unauthorized');
+      window.location.href = '/login';
+      throw new Error('Session expired. Please login again.');
     }
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || error.message || 'API request failed');
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || error.message || `API request failed: ${response.statusText}`);
     }
 
-    return response.json();
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    }
+    
+    return {} as T;
   }
 
   get<T>(endpoint: string): Promise<T> {
@@ -108,4 +110,5 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient(baseURL);
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+export const apiClient = new ApiClient(API_BASE_URL);

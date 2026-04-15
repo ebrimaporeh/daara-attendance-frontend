@@ -3,35 +3,59 @@ import { motion } from 'framer-motion';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useUsers } from '@/hooks/useUsers';
 import { Users, CalendarCheck, TrendingUp, Award } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+
+// Define the response type
+interface TodayAttendanceResponse {
+  date: string;
+  summary: {
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    sick: number;
+    total: number;
+    attendance_rate: number;
+  };
+  records: Array<{
+    id: number;
+    student_name: string;
+    date: string;
+    status: string;
+  }>;
+}
 
 const AdminDashboard: React.FC = () => {
   const { useGetStudents } = useUsers();
   const { useGetTodayAttendance } = useAttendance();
   
   const { data: students, isLoading: studentsLoading } = useGetStudents();
-  const { data: todayAttendance, isLoading: attendanceLoading } = useGetTodayAttendance();
-
+  const { data: todayAttendanceRaw, isLoading: attendanceLoading } = useGetTodayAttendance();
+  
+  // Type assertion for todayAttendance
+  const todayAttendance = todayAttendanceRaw as TodayAttendanceResponse | undefined;
+  
   const stats = [
     {
       label: 'Total Students',
       value: students?.length || 0,
       icon: Users,
       color: 'text-blue-600',
-      bg: 'bg-blue-100',
+      bg: 'bg-blue-100 dark:bg-blue-950/30',
     },
     {
       label: "Today's Present",
       value: todayAttendance?.summary?.present || 0,
       icon: CalendarCheck,
       color: 'text-green-600',
-      bg: 'bg-green-100',
+      bg: 'bg-green-100 dark:bg-green-950/30',
     },
     {
       label: 'Attendance Rate',
       value: todayAttendance?.summary?.attendance_rate || 0,
       icon: TrendingUp,
       color: 'text-yellow-600',
-      bg: 'bg-yellow-100',
+      bg: 'bg-yellow-100 dark:bg-yellow-950/30',
       suffix: '%',
     },
     {
@@ -39,15 +63,23 @@ const AdminDashboard: React.FC = () => {
       value: todayAttendance?.summary?.total || 0,
       icon: Award,
       color: 'text-purple-600',
-      bg: 'bg-purple-100',
+      bg: 'bg-purple-100 dark:bg-purple-950/30',
     },
   ];
+
+  if (studentsLoading || attendanceLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Overview of school attendance</p>
+        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-muted mt-1">Overview of school attendance</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -57,12 +89,12 @@ const AdminDashboard: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+            className="bg-surface rounded-xl shadow-sm p-6 border border-border"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">
+                <p className="text-muted text-sm">{stat.label}</p>
+                <p className="text-2xl font-bold text-foreground mt-1">
                   {stat.value}{stat.suffix || ''}
                 </p>
               </div>
@@ -75,33 +107,42 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Recent Activity</h2>
+        <div className="bg-surface rounded-xl shadow-sm p-6 border border-border">
+          <h2 className="text-xl font-semibold text-foreground mb-4">Recent Activity</h2>
           <div className="space-y-3">
-            {todayAttendance?.records?.slice(0, 5).map((record: any) => (
-              <div key={record.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+            {todayAttendance?.records?.slice(0, 5).map((record) => (
+              <div key={record.id} className="flex justify-between items-center p-3 bg-background rounded-lg">
                 <div>
-                  <p className="font-medium text-gray-800">{record.student_name}</p>
-                  <p className="text-sm text-gray-500">{record.date}</p>
+                  <p className="font-medium text-foreground">{record.student_name}</p>
+                  <p className="text-sm text-muted">{record.date}</p>
                 </div>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  record.status === 'present' ? 'bg-green-100 text-green-800' :
-                  record.status === 'absent' ? 'bg-red-100 text-red-800' :
-                  'bg-yellow-100 text-yellow-800'
+                  record.status === 'present' ? 'bg-green-100 text-green-800 dark:bg-green-950/30 dark:text-green-300' :
+                  record.status === 'absent' ? 'bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-300' :
+                  'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300'
                 }`}>
                   {record.status}
                 </span>
               </div>
             ))}
+            {(!todayAttendance?.records || todayAttendance.records.length === 0) && (
+              <p className="text-center text-muted py-8">No recent activity</p>
+            )}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
+        <div className="bg-surface rounded-xl shadow-sm p-6 border border-border">
+          <h2 className="text-xl font-semibold text-foreground mb-4">Quick Actions</h2>
           <div className="space-y-3">
-            <button className="w-full btn-primary">Mark Today's Attendance</button>
-            <button className="w-full btn-secondary">View Attendance Reports</button>
-            <button className="w-full btn-secondary">Manage Students</button>
+            <Link to="/admin/attendance/mark" className="btn btn-primary w-full justify-center">
+              Mark Today's Attendance
+            </Link>
+            <Link to="/admin/reports" className="btn btn-secondary w-full justify-center">
+              View Attendance Reports
+            </Link>
+            <Link to="/admin/students" className="btn btn-secondary w-full justify-center">
+              Manage Students
+            </Link>
           </div>
         </div>
       </div>

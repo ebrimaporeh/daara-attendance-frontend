@@ -138,7 +138,7 @@ export const PublicLayout: React.FC = () => {
       </nav>
 
       {/* Hero Section (only on home page) */}
-      <Outlet context={{ isMobileMenuOpen, setIsMobileMenuOpen }} />
+      <Outlet/>
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white mt-20">
