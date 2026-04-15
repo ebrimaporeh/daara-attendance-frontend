@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+// import React, { useEffect, useState } from 'react';
 import { RouterProvider } from '@tanstack/react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -23,16 +23,16 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   // }, [theme]);
 
   // Listen for system theme changes
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      if (!localStorage.getItem('theme')) {
-        setTheme(e.matches ? 'dark' : 'light');
-      }
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+  // useEffect(() => {
+  //   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  //   const handleChange = (e: MediaQueryListEvent) => {
+  //     if (!localStorage.getItem('theme')) {
+  //       setTheme(e.matches ? 'dark' : 'light');
+  //     }
+  //   };
+  //   mediaQuery.addEventListener('change', handleChange);
+  //   return () => mediaQuery.removeEventListener('change', handleChange);
+  // }, []);
 
   return (
     <>
