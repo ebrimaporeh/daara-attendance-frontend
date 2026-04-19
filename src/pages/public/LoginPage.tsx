@@ -25,7 +25,7 @@ type LoginFormData = {
 };
 
 // Configuration constant - set to true to show demo credentials, false to hide them
-const SHOW_DEMO_CREDENTIALS = true;
+const SHOW_DEMO_CREDENTIALS = false;
 
 const LoginPage: React.FC = () => {
   const { login, isLoggingIn } = useAuth();
