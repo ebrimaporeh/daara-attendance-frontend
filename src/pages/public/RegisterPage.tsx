@@ -26,7 +26,6 @@ const RegisterPage: React.FC = () => {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -34,8 +33,6 @@ const RegisterPage: React.FC = () => {
       user_type: 'student',
     },
   });
-
-  const userType = watch('user_type');
 
   const onSubmit = handleSubmit(async (data: RegisterFormData) => {
     try {
@@ -46,7 +43,7 @@ const RegisterPage: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen  bg-linear-to-br from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -61,60 +58,8 @@ const RegisterPage: React.FC = () => {
 
         <div className="p-8">
           <form onSubmit={onSubmit} className="space-y-5">
-            {/* User Type Selection */}
-            <div className="grid grid-cols-2 gap-4">
-              <label className={`relative flex items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                userType === 'student' 
-                  ? 'border-primary-600 bg-primary-50 dark:bg-primary-950/30' 
-                  : 'border-border hover:border-muted'
-              }`}>
-                <input
-                  type="radio"
-                  value="student"
-                  {...register('user_type')}
-                  className="sr-only"
-                />
-                <div className="text-center">
-                  <Users className={`h-6 w-6 mx-auto mb-2 ${
-                    userType === 'student' ? 'text-primary-600' : 'text-muted'
-                  }`} />
-                  <span className={`font-medium ${
-                    userType === 'student' ? 'text-primary-600' : 'text-foreground'
-                  }`}>
-                    Student
-                  </span>
-                </div>
-              </label>
-
-              <label className={`relative flex items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                userType === 'admin' 
-                  ? 'border-primary-600 bg-primary-50 dark:bg-primary-950/30' 
-                  : 'border-border hover:border-muted'
-              }`}>
-                <input
-                  type="radio"
-                  value="admin"
-                  {...register('user_type')}
-                  className="sr-only"
-                />
-                <div className="text-center">
-                  <UserIcon className={`h-6 w-6 mx-auto mb-2 ${
-                    userType === 'admin' ? 'text-primary-600' : 'text-muted'
-                  }`} />
-                  <span className={`font-medium ${
-                    userType === 'admin' ? 'text-primary-600' : 'text-foreground'
-                  }`}>
-                    Admin
-                  </span>
-                </div>
-              </label>
-            </div>
-            {errors.user_type && (
-              <p className="text-sm text-error-600 flex items-center gap-1">
-                <AlertCircle size={14} />
-                {errors.user_type.message}
-              </p>
-            )}
+            {/* Hidden user_type input - always student */}
+            <input type="hidden" {...register('user_type')} value="student" />
 
             {/* Name Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -291,7 +236,7 @@ const RegisterPage: React.FC = () => {
               ) : (
                 <>
                   <CheckCircle size={20} />
-                  <span>Register</span>
+                  <span>Register as Student</span>
                 </>
               )}
             </button>
@@ -314,11 +259,11 @@ const RegisterPage: React.FC = () => {
             <div className="flex items-start gap-3">
               <School className="h-5 w-5 text-primary-600 mt-0.5" />
               <div>
-                <p className="text-sm text-primary-800 dark:text-primary-300 font-medium">About Registration</p>
+                <p className="text-sm text-primary-800 dark:text-primary-300 font-medium">Student Registration Only</p>
                 <p className="text-xs text-primary-600 dark:text-primary-400 mt-1">
-                  Students can register themselves. Admin accounts need to be approved 
-                  or created by an existing admin. If registering as admin, you'll need 
-                  to contact the school administrator for approval.
+                  This registration form is for students only. Admin accounts must be created 
+                  by an existing administrator. Please contact the school administration if 
+                  you need admin access.
                 </p>
               </div>
             </div>

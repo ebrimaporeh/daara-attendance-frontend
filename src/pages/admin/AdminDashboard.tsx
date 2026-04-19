@@ -139,7 +139,7 @@ const AdminDashboard: React.FC = () => {
               <div className="text-center text-muted py-8">
                 <CalendarCheck className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>No recent activity</p>
-                <Link to="/admin/attendance/mark" className="text-primary-600 text-sm mt-2 inline-block">
+                <Link to="/admin/mark" className="text-primary-600 text-sm mt-2 inline-block">
                   Mark attendance now →
                 </Link>
               </div>
@@ -152,7 +152,7 @@ const AdminDashboard: React.FC = () => {
           <h2 className="text-xl font-semibold text-foreground mb-4">Quick Actions</h2>
           <div className="space-y-3">
             <Link 
-              to="/admin/attendance/mark" 
+              to="/admin/mark" 
               className="btn btn-primary w-full justify-center flex items-center gap-2"
             >
               <CalendarCheck size={18} />
@@ -209,7 +209,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
           <Link 
-            to="/admin/attendance/mark" 
+            to="/admin/mark" 
             className="btn btn-primary whitespace-nowrap"
           >
             Mark Now

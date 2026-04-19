@@ -24,6 +24,9 @@ type LoginFormData = {
   password: string;
 };
 
+// Configuration constant - set to true to show demo credentials, false to hide them
+const SHOW_DEMO_CREDENTIALS = true;
+
 const LoginPage: React.FC = () => {
   const { login, isLoggingIn } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -270,44 +273,59 @@ const LoginPage: React.FC = () => {
                 </button>
               </form>
 
-              {/* Demo Credentials */}
-              <div className="mt-8">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white dark:bg-surface text-muted">Demo Credentials</span>
-                  </div>
-                </div>
-                
-                <div className="mt-4 space-y-2">
-                  {demoCredentials.map((cred, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleDemoLogin(cred.phone, cred.password)}
-                      className="w-full text-left p-3 bg-surface-hover rounded-lg hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-all group border border-border hover:border-primary-200 dark:hover:border-primary-800"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {cred.role} Account
-                          </p>
-                          <p className="text-xs text-muted mt-0.5">
-                            Phone: {cred.phone} | Password: {cred.password}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-primary-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                            Click to login
-                          </span>
-                          <ChevronRight className="h-4 w-4 text-muted group-hover:text-primary-600 transition-colors" />
-                        </div>
+              {/* Demo Credentials - Conditionally Rendered */}
+              {SHOW_DEMO_CREDENTIALS && (
+                <>
+                  <div className="mt-8">
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-border"></div>
                       </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                      <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-white dark:bg-surface text-muted">Demo Credentials</span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 space-y-2">
+                      {demoCredentials.map((cred, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleDemoLogin(cred.phone, cred.password)}
+                          className="w-full text-left p-3 bg-surface-hover rounded-lg hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-all group border border-border hover:border-primary-200 dark:hover:border-primary-800"
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                {cred.role} Account
+                              </p>
+                              <p className="text-xs text-muted mt-0.5">
+                                Phone: {cred.phone} | Password: {cred.password}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-primary-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                Click to login
+                              </span>
+                              <ChevronRight className="h-4 w-4 text-muted group-hover:text-primary-600 transition-colors" />
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Info Note - Only show when demo credentials are visible */}
+                  <div className="mt-6 p-3 bg-primary-50 dark:bg-primary-950/30 rounded-lg border border-primary-100 dark:border-primary-800">
+                    <div className="flex items-start gap-2">
+                      <School className="h-4 w-4 text-primary-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-primary-700 dark:text-primary-300">
+                        Click on any demo credential to automatically fill and login. 
+                        Admin accounts have full access, while student accounts can only view their own attendance.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Register Link */}
               <div className="mt-6 text-center">
@@ -322,16 +340,17 @@ const LoginPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Info Note */}
-              <div className="mt-6 p-3 bg-primary-50 dark:bg-primary-950/30 rounded-lg border border-primary-100 dark:border-primary-800">
-                <div className="flex items-start gap-2">
-                  <School className="h-4 w-4 text-primary-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-primary-700 dark:text-primary-300">
-                    Click on any demo credential to automatically fill and login. 
-                    Admin accounts have full access, while student accounts can only view their own attendance.
-                  </p>
+              {/* Simple Info Note - Shown when demo credentials are hidden */}
+              {!SHOW_DEMO_CREDENTIALS && (
+                <div className="mt-6 p-3 bg-primary-50 dark:bg-primary-950/30 rounded-lg border border-primary-100 dark:border-primary-800">
+                  <div className="flex items-start gap-2">
+                    <School className="h-4 w-4 text-primary-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-primary-700 dark:text-primary-300">
+                      Please contact the school administrator if you need assistance with your login credentials.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </motion.div>
         </div>

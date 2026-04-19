@@ -83,7 +83,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ onClose }) => {
       <div className="p-4 border-t border-border">
         <button
           onClick={handleLogout}
-          className="flex items-center space-x-3 px-4 py-3 w-full rounded-lg text-error-600 hover:bg-error-50 dark:hover:bg-error-950/30 transition-all duration-200"
+          className="flex items-center space-x-3 px-4 py-3 cursor-pointer w-full rounded-lg text-error-600 hover:bg-error-50 dark:hover:bg-error-950/30 transition-all duration-200"
         >
           <LogOut size={20} />
           <span>Logout</span>
