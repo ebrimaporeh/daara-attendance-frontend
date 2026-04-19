@@ -1,32 +1,35 @@
 import { apiClient } from './client';
-import { LoginResponse, User } from '@/types';
 
 export const authApi = {
-  login: (phone: string, password: string): Promise<LoginResponse> => {
+  login: async (phone: string, password: string) => {
     return apiClient.post('/login/', { phone, password });
   },
 
-  register: (userData: any): Promise<LoginResponse> => {
-  return apiClient.post('/register/', userData);
-},
-
-  logout: (refreshToken: string) => {
-    return apiClient.post('/users/logout/', { refresh_token: refreshToken });
+  register: async (userData: any) => {
+    return apiClient.post('/register/', userData);
   },
 
-  changePassword: (oldPassword: string, newPassword: string, confirmNewPassword: string) => {
-    return apiClient.post('/change-password/', {
-      old_password: oldPassword,
-      new_password: newPassword,
-      confirm_new_password: confirmNewPassword,
-    });
+  logout: async (refreshToken: string) => {
+    return apiClient.post('/logout/', { refresh: refreshToken });
   },
 
-  getProfile: (): Promise<User> => {
+  getProfile: async () => {
     return apiClient.get('/users/profile/');
   },
 
-  updateProfile: (data: Partial<User>): Promise<User> => {
+  changePassword: async (oldPassword: string, newPassword: string, confirmPassword: string) => {
+    return apiClient.post('/change-password/', {
+      old_password: oldPassword,
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    });
+  },
+
+  updateProfile: async (data: any) => {
     return apiClient.patch('/users/profile/', data);
+  },
+
+  refreshToken: async (refreshToken: string) => {
+    return apiClient.post('/token/refresh/', { refresh: refreshToken });
   },
 };

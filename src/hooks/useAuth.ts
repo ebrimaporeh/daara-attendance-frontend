@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/api/auth";
 import { useRouter } from "@tanstack/react-router";
-import toast from "react-hot-toast";
 import { LoginResponse, User } from "@/types";
 
 export const useAuth = () => {
@@ -35,7 +34,6 @@ export const useAuth = () => {
       localStorage.setItem("refresh_token", data.refresh);
       localStorage.setItem("user", JSON.stringify(data.user));
       queryClient.setQueryData(["user"], data.user);
-      toast.success("Welcome back!");
 
       if (data.user.user_type === "admin") {
         router.navigate({ to: "/admin" });
@@ -43,29 +41,21 @@ export const useAuth = () => {
         router.navigate({ to: "/student" });
       }
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "Login failed");
-    },
   });
 
-  const registerMutation = useMutation<LoginResponse, Error, any>({
-    mutationFn: (userData: any) =>
-      authApi.register(userData) as Promise<LoginResponse>,
+  const registerMutation = useMutation({
+    mutationFn: (userData: any) => authApi.register(userData),
     onSuccess: (data: LoginResponse) => {
       localStorage.setItem("access_token", data.access);
       localStorage.setItem("refresh_token", data.refresh);
       localStorage.setItem("user", JSON.stringify(data.user));
       queryClient.setQueryData(["user"], data.user);
-      toast.success("Registration successful! Welcome to Ana-Muslimah!");
 
       if (data.user.user_type === "admin") {
         router.navigate({ to: "/admin" });
       } else {
         router.navigate({ to: "/student" });
       }
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Registration failed");
     },
   });
 
@@ -81,7 +71,6 @@ export const useAuth = () => {
       localStorage.removeItem("refresh_token");
       localStorage.removeItem("user");
       queryClient.clear();
-      toast.success("Logged out successfully");
       router.navigate({ to: "/login" });
     },
   });
@@ -92,10 +81,6 @@ export const useAuth = () => {
     onSuccess: (data: any) => {
       localStorage.setItem("access_token", data.access);
       localStorage.setItem("refresh_token", data.refresh);
-      toast.success("Password changed successfully");
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Password change failed");
     },
   });
 
@@ -104,10 +89,6 @@ export const useAuth = () => {
     onSuccess: (updatedUser: User) => {
       queryClient.setQueryData(["user"], updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
-      toast.success("Profile updated successfully");
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Profile update failed");
     },
   });
 
@@ -124,5 +105,9 @@ export const useAuth = () => {
     isLoggingIn: loginMutation.isPending,
     isRegistering: registerMutation.isPending,
     isLoggingOut: logoutMutation.isPending,
+    loginError: loginMutation.error,
+    registerError: registerMutation.error,
+    changePasswordError: changePasswordMutation.error,
+    updateProfileError: updateProfileMutation.error,
   };
 };

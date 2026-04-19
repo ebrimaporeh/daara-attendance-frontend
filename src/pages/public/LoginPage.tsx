@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from '@tanstack/react-router';
 import { useAuth } from '@/hooks/useAuth';
 import { loginSchema } from '@/utils/validation';
+import { extractApiError } from '@/utils/errorHandler';
 import { 
   School, 
   Phone, 
@@ -16,7 +17,8 @@ import {
   ChevronRight,
   Shield,
   Users,
-  BookOpen
+  BookOpen,
+  XCircle
 } from 'lucide-react';
 
 type LoginFormData = {
@@ -24,11 +26,10 @@ type LoginFormData = {
   password: string;
 };
 
-// Configuration constant - set to true to show demo credentials, false to hide them
 const SHOW_DEMO_CREDENTIALS = false;
 
 const LoginPage: React.FC = () => {
-  const { login, isLoggingIn } = useAuth();
+  const { login, isLoggingIn, loginError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
@@ -36,7 +37,6 @@ const LoginPage: React.FC = () => {
     register,
     handleSubmit,
     setValue,
-    getValues,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -50,11 +50,13 @@ const LoginPage: React.FC = () => {
     try {
       await login(data);
     } catch (error) {
+      // Error handled by useAuth hook
       console.error('Login failed:', error);
     }
   };
 
-  // Demo credentials for quick testing
+  const apiError = loginError ? extractApiError(loginError) : null;
+
   const demoCredentials = [
     { role: 'Admin (Ustadh)', phone: '7123456', password: 'admin123', type: 'admin' },
     { role: 'Student', phone: '5345678', password: 'student123', type: 'student' },
@@ -68,7 +70,6 @@ const LoginPage: React.FC = () => {
 
   const handleDemoLogin = async (phone: string, password: string) => {
     fillDemoCredentials(phone, password);
-    // Small delay to ensure form values are set
     setTimeout(async () => {
       try {
         await login({ phone, password });
@@ -80,7 +81,6 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-primary-100 to-primary-200 dark:from-primary-950 dark:via-primary-900 dark:to-primary-800 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse delay-1000" />
@@ -89,7 +89,7 @@ const LoginPage: React.FC = () => {
 
       <div className="w-full max-w-6xl relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Side - Info Section */}
+          {/* Left Side */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -159,6 +159,30 @@ const LoginPage: React.FC = () => {
             </div>
 
             <div className="p-8">
+              {/* API Error Alert */}
+              <AnimatePresence>
+                {apiError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg"
+                  >
+                    <div className="flex items-start gap-2">
+                      <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-red-800 dark:text-red-300">
+                          Login Failed
+                        </p>
+                        <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                          {apiError.message}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                 {/* Phone Field */}
                 <div>
@@ -173,7 +197,7 @@ const LoginPage: React.FC = () => {
                       placeholder="7123456"
                       autoComplete="tel"
                       className={`w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-background ${
-                        errors.phone ? 'border-error-500' : 'border-border'
+                        errors.phone ? 'border-red-500' : 'border-border'
                       }`}
                     />
                   </div>
@@ -183,7 +207,7 @@ const LoginPage: React.FC = () => {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="mt-1 text-sm text-error-600 flex items-center gap-1"
+                        className="mt-1 text-sm text-red-600 flex items-center gap-1"
                       >
                         <AlertCircle size={14} />
                         {errors.phone.message}
@@ -208,7 +232,7 @@ const LoginPage: React.FC = () => {
                       placeholder="••••••••"
                       autoComplete="current-password"
                       className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all bg-background ${
-                        errors.password ? 'border-error-500' : 'border-border'
+                        errors.password ? 'border-red-500' : 'border-border'
                       }`}
                     />
                     <button
@@ -225,7 +249,7 @@ const LoginPage: React.FC = () => {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="mt-1 text-sm text-error-600 flex items-center gap-1"
+                        className="mt-1 text-sm text-red-600 flex items-center gap-1"
                       >
                         <AlertCircle size={14} />
                         {errors.password.message}
@@ -273,7 +297,7 @@ const LoginPage: React.FC = () => {
                 </button>
               </form>
 
-              {/* Demo Credentials - Conditionally Rendered */}
+              {/* Demo Credentials */}
               {SHOW_DEMO_CREDENTIALS && (
                 <>
                   <div className="mt-8">
@@ -314,7 +338,6 @@ const LoginPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Info Note - Only show when demo credentials are visible */}
                   <div className="mt-6 p-3 bg-primary-50 dark:bg-primary-950/30 rounded-lg border border-primary-100 dark:border-primary-800">
                     <div className="flex items-start gap-2">
                       <School className="h-4 w-4 text-primary-600 mt-0.5 flex-shrink-0" />
@@ -340,7 +363,7 @@ const LoginPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Simple Info Note - Shown when demo credentials are hidden */}
+              {/* Info Note */}
               {!SHOW_DEMO_CREDENTIALS && (
                 <div className="mt-6 p-3 bg-primary-50 dark:bg-primary-950/30 rounded-lg border border-primary-100 dark:border-primary-800">
                   <div className="flex items-start gap-2">
