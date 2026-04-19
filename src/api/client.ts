@@ -19,7 +19,6 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Merge with any additional headers from options
     if (options.headers) {
       Object.assign(headers, options.headers);
     }
@@ -68,73 +67,27 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      // Try to get the error response body
       let errorData: any = {};
       try {
         errorData = await response.json();
       } catch {
-        // If response is not JSON, use status text
         errorData = { message: response.statusText };
       }
       
-      // Create an error object that matches axios error structure for consistency
       const error = new Error();
       (error as any).response = {
         status: response.status,
         data: errorData,
       };
-      (error as any).message = this.extractErrorMessage(errorData);
-      
       throw error;
     }
 
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
-      return response.json();
+      return await response.json() as T;
     }
     
     return {} as T;
-  }
-
-  private extractErrorMessage(errorData: any): string {
-    if (!errorData) return 'An unknown error occurred';
-    
-    // Handle DRF non_field_errors
-    if (errorData.non_field_errors) {
-      return Array.isArray(errorData.non_field_errors) 
-        ? errorData.non_field_errors[0] 
-        : errorData.non_field_errors;
-    }
-    
-    // Handle field-specific errors
-    if (typeof errorData === 'object') {
-      // Get the first error message from any field
-      for (const [field, value] of Object.entries(errorData)) {
-        if (Array.isArray(value) && value.length > 0) {
-          return `${field}: ${value[0]}`;
-        }
-        if (typeof value === 'string') {
-          return `${field}: ${value}`;
-        }
-      }
-    }
-    
-    // Handle detail field (common in DRF)
-    if (errorData.detail) {
-      return errorData.detail;
-    }
-    
-    // Handle message field
-    if (errorData.message) {
-      return errorData.message;
-    }
-    
-    // Handle string response
-    if (typeof errorData === 'string') {
-      return errorData;
-    }
-    
-    return 'An unexpected error occurred';
   }
 
   get<T>(endpoint: string): Promise<T> {

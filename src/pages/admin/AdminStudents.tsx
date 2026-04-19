@@ -1,89 +1,49 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { 
   Users, 
   Search, 
-  Filter, 
-  Plus, 
   Edit, 
   Trash2,
   ChevronLeft,
   ChevronRight,
   UserPlus,
   Download,
-  Upload,
   Mail,
   Phone,
   Calendar,
-  Shield,
   MoreVertical,
   Eye,
   UserCheck,
   UserX,
-  RefreshCw,
-  GraduationCap,
-  Activity,
   Award,
   Clock,
   X,
-  Check,
-  AlertCircle,
-  FileText,
-  PieChart,
   TrendingUp,
   Star
 } from 'lucide-react';
 import { useUsers } from '@/hooks/useUsers';
 import { useAttendance } from '@/hooks/useAttendance';
-import { registerSchema } from '@/utils/validation';
 import { formatDate, getStatusBadge } from '@/utils/dateUtils';
 import toast from 'react-hot-toast';
-import * as z from 'zod';
-
-type Student = {
-  id: number;
-  first_name: string;
-  last_name: string;
-  fathers_first_name: string;
-  phone: string;
-  user_type: 'student' | 'admin';
-  email?: string;
-  date_joined?: string;
-  last_login?: string;
-  is_active?: boolean;
-  is_staff?: boolean;
-};
-
-type StudentFormData = {
-  first_name: string;
-  last_name: string;
-  fathers_first_name: string;
-  phone: string;
-  email?: string;
-  password: string;
-  confirm_password: string;
-};
-
+import { User } from '@/types';
 
 const AdminStudentsPage: React.FC = () => {
-  const queryClient = useQueryClient();
-  const { useGetStudents, changeUserRole } = useUsers();
-  const { useGetStudentAttendance, useGetAttendanceSummary } = useAttendance();
+  const { useGetStudents } = useUsers();
+  const { useGetAttendanceSummary } = useAttendance();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'attendance'>('name');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+  const [studentToDelete, setStudentToDelete] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
@@ -93,15 +53,6 @@ const AdminStudentsPage: React.FC = () => {
   const { data: students, isLoading: studentsLoading, refetch } = useGetStudents();
   const { data: monthlySummary } = useGetAttendanceSummary({ 
     month: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}` 
-  });
-
-  const changeRoleMutation = useMutation({
-    mutationFn: ({ id, userType }: { id: number; userType: 'student' | 'admin' }) =>
-      changeUserRole({ id, userType }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Student status updated successfully');
-    },
   });
 
   // Filter and sort students
@@ -148,7 +99,6 @@ const AdminStudentsPage: React.FC = () => {
   );
 
   const handleDeleteStudent = async () => {
-    // API call would go here
     toast.success(`Student ${studentToDelete?.first_name} ${studentToDelete?.last_name} deleted`);
     setShowDeleteModal(false);
     setStudentToDelete(null);
@@ -202,8 +152,8 @@ const AdminStudentsPage: React.FC = () => {
     }
   };
 
-  const getAttendanceStats = (studentId: number) => {
-    // This would calculate from actual API data
+  // Fixed: Removed unused parameter
+  const getAttendanceStats = () => {
     return {
       present: 85,
       absent: 10,
@@ -428,7 +378,7 @@ const AdminStudentsPage: React.FC = () => {
       {viewMode === 'grid' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {paginatedStudents.map((student, index) => {
-            const stats = getAttendanceStats(student.id);
+            const stats = getAttendanceStats();
             const isSelected = selectedStudents.includes(student.id);
             
             return (
@@ -588,7 +538,7 @@ const AdminStudentsPage: React.FC = () => {
               </thead>
               <tbody>
                 {paginatedStudents.map((student) => {
-                  const stats = getAttendanceStats(student.id);
+                  const stats = getAttendanceStats();
                   const isSelected = selectedStudents.includes(student.id);
                   
                   return (
@@ -688,7 +638,7 @@ const AdminStudentsPage: React.FC = () => {
       {viewMode === 'list' && (
         <div className="md:hidden space-y-3">
           {paginatedStudents.map((student) => {
-            const stats = getAttendanceStats(student.id);
+            const stats = getAttendanceStats();
             const isSelected = selectedStudents.includes(student.id);
             
             return (
@@ -908,7 +858,7 @@ const AdminStudentsPage: React.FC = () => {
                     type="email"
                     className="input"
                     placeholder="student@example.com"
-                    defaultValue={isEditing ? selectedStudent?.email : ''}
+                    defaultValue={isEditing ? (selectedStudent?.email || '') : ''}
                   />
                 </div>
                 

@@ -4,11 +4,11 @@ export interface User {
   last_name: string;
   fathers_first_name: string;
   phone: string;
+  email: string | null;
   user_type: 'student' | 'admin';
+  date_joined: string;
   full_name?: string;
-  email?: string;
   username?: string;
-  date_joined?: string;
   last_login?: string;
   is_active?: boolean;
   is_staff?: boolean;
