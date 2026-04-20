@@ -215,7 +215,7 @@ const LoginPage: React.FC = () => {
                     )}
                   </AnimatePresence>
                   <p className="mt-1 text-xs text-muted">
-                    7 digits starting with 2,4,5,6,7, or 9
+                    Use a Gambian number (7 digits without (+220))
                   </p>
                 </div>
 
