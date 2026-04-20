@@ -3,8 +3,8 @@ import * as z from "zod";
 export const phoneSchema = z
   .string()
   .regex(
-    /^[245679]\d{6}$/,
-    "Phone number must be 7 digits starting with 2,4,5,6,7, or 9",
+    /^[2-9]\d{6}$/,
+    "Phone number must be 7 digits and must not start with 0 or 1",
   );
 
 export const loginSchema = z.object({
