@@ -1,45 +1,35 @@
-import React, { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useState, useMemo, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   Search,
-  Filter,
   Download,
-  Eye,
   Edit,
   Trash2,
   ChevronLeft,
   ChevronRight,
   CalendarDays,
-  Users,
   Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
   Heart,
   TrendingUp,
-  TrendingDown,
-  Minus,
   RefreshCw,
   FileText,
   PieChart,
-  Icon
 } from "lucide-react";
 import { useAttendance } from "@/hooks/useAttendance";
-import { useUsers } from "@/hooks/useUsers";
 import {
   formatDate,
   getStatusBadge,
-  getAttendanceColor,
 } from "@/utils/dateUtils";
 import toast from "react-hot-toast";
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -50,6 +40,8 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { EditAttendanceSheet } from "@/components/features/attendance/EditAttendanceSheet";
+import { Pagination } from "@/components/common/Pagination";
 
 const STATUS_ICONS = {
   present: CheckCircle,
@@ -71,7 +63,6 @@ const AdminAttendancePage: React.FC = () => {
   const queryClient = useQueryClient();
   const { useGetAttendance, deleteAttendance, useGetAttendanceSummary } =
     useAttendance();
-  const { useGetStudents } = useUsers();
 
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
@@ -81,24 +72,56 @@ const AdminAttendancePage: React.FC = () => {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"list" | "grid" | "calendar">(
-    "list",
-  );
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [pageSize, setPageSize] = useState(20);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<number | null>(null);
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+  const [selectedRecordForEdit, setSelectedRecordForEdit] = useState<any>(null);
 
-  const itemsPerPage = 15;
+  // Build filters based on current state
+  const filters = useMemo(() => {
+    const filters: any = {
+      page: currentPage,
+      page_size: pageSize,
+    };
+    
+    if (selectedDate) {
+      filters.date = selectedDate;
+    }
+    
+    if (statusFilter !== "all") {
+      filters.status = statusFilter;
+    }
+    
+    if (searchQuery) {
+      filters.search = searchQuery;
+    }
+    
+    return filters;
+  }, [currentPage, pageSize, selectedDate, statusFilter, searchQuery]);
 
+  // Fetch attendance data with pagination
   const {
-    data: attendanceRecords,
+    data: attendanceData,
     isLoading: attendanceLoading,
     refetch,
-  } = useGetAttendance();
+  } = useGetAttendance(filters);
+
+  // Fetch daily summary
   const { data: dailySummary } = useGetAttendanceSummary({
     date: selectedDate,
   });
+
+  // Get records and pagination info from response
+  const attendanceRecords = attendanceData?.data || [];
+  const pagination = attendanceData?.pagination;
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDate, statusFilter, searchQuery]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -115,41 +138,6 @@ const AdminAttendancePage: React.FC = () => {
       toast.error(error.message || "Failed to delete attendance record");
     },
   });
-
-  // Filter and search records
-  const filteredRecords = useMemo(() => {
-    if (!attendanceRecords) return [];
-
-    let records = [...attendanceRecords];
-
-    // Filter by date
-    if (selectedDate) {
-      records = records.filter((r) => r.date === selectedDate);
-    }
-
-    // Filter by status
-    if (statusFilter !== "all") {
-      records = records.filter((r) => r.status === statusFilter);
-    }
-
-    // Search by student name
-    if (searchQuery) {
-      records = records.filter(
-        (r) =>
-          r.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          r.student_phone.includes(searchQuery),
-      );
-    }
-
-    return records.sort((a, b) => a.student_name.localeCompare(b.student_name));
-  }, [attendanceRecords, selectedDate, statusFilter, searchQuery]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
-  const paginatedRecords = filteredRecords.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
 
   // Prepare chart data
   const chartData = useMemo(() => {
@@ -189,7 +177,28 @@ const AdminAttendancePage: React.FC = () => {
     }
   };
 
+  const handleEditSuccess = () => {
+    // Refetch data to show updated records
+    refetch();
+    queryClient.invalidateQueries({ queryKey: ["attendance"] });
+    // Close the edit sheet
+    setIsEditSheetOpen(false);
+    setSelectedRecordForEdit(null);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1); // Reset to first page
+  };
+
   const exportToCSV = () => {
+    if (!attendanceRecords.length) return;
+    
     const headers = [
       "Student Name",
       "Phone",
@@ -198,9 +207,9 @@ const AdminAttendancePage: React.FC = () => {
       "Notes",
       "Marked By",
     ];
-    const csvData = filteredRecords.map((record) => [
+    const csvData = attendanceRecords.map((record: any) => [
       record.student_name,
-      record.student_phone,
+      record.student_phone || "",
       record.date,
       record.status,
       record.notes || "",
@@ -252,7 +261,7 @@ const AdminAttendancePage: React.FC = () => {
           <button
             onClick={exportToCSV}
             className="btn btn-secondary flex items-center gap-2"
-            disabled={filteredRecords.length === 0}
+            disabled={attendanceRecords.length === 0}
           >
             <Download size={18} />
             <span className="hidden md:inline">Export</span>
@@ -335,7 +344,6 @@ const AdminAttendancePage: React.FC = () => {
               }
             >
               <div className="flex items-center justify-between mb-2">
-                {/* <Icon size={20} style={"color" : color } /> */}
                 <span
                   className={`text-xs font-medium px-1.5 py-0.5 rounded-full`}
                   style={{ backgroundColor: `${color}20`, color }}
@@ -400,7 +408,7 @@ const AdminAttendancePage: React.FC = () => {
                     : "bg-surface text-muted hover:text-foreground"
                 }`}
               >
-                <Calendar size={18} />
+                <PieChart size={18} />
               </button>
             </div>
           </div>
@@ -424,7 +432,6 @@ const AdminAttendancePage: React.FC = () => {
                   cy="50%"
                   labelLine={false}
                   label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
-
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
@@ -507,7 +514,7 @@ const AdminAttendancePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {paginatedRecords.map((record) => {
+                {attendanceRecords.map((record: any) => {
                   const badge = getStatusBadge(record.status);
                   return (
                     <motion.tr
@@ -540,18 +547,23 @@ const AdminAttendancePage: React.FC = () => {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
-                          <Link
-                            to={`/admin/attendance/${record.id}/edit`}
+                          <button
+                            onClick={() => {
+                              setSelectedRecordForEdit(record);
+                              setIsEditSheetOpen(true);
+                            }}
                             className="p-1 text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                            title="Edit record"
                           >
                             <Edit size={16} />
-                          </Link>
+                          </button>
                           <button
                             onClick={() => {
                               setRecordToDelete(record.id);
                               setShowDeleteModal(true);
                             }}
                             className="p-1 text-error-600 hover:bg-error-50 rounded transition-colors"
+                            title="Delete record"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -566,7 +578,7 @@ const AdminAttendancePage: React.FC = () => {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
-            {paginatedRecords.map((record) => {
+            {attendanceRecords.map((record: any) => {
               const badge = getStatusBadge(record.status);
               const Icon =
                 STATUS_ICONS[record.status as keyof typeof STATUS_ICONS];
@@ -619,13 +631,16 @@ const AdminAttendancePage: React.FC = () => {
                   </div>
 
                   <div className="flex gap-2 mt-3 pt-3 border-t border-border">
-                    <Link
-                      to={`/admin/attendance/${record.id}/edit`}
+                    <button
+                      onClick={() => {
+                        setSelectedRecordForEdit(record);
+                        setIsEditSheetOpen(true);
+                      }}
                       className="flex-1 btn btn-secondary flex items-center justify-center gap-2 text-sm"
                     >
                       <Edit size={16} />
                       Edit
-                    </Link>
+                    </button>
                     <button
                       onClick={() => {
                         setRecordToDelete(record.id);
@@ -642,37 +657,24 @@ const AdminAttendancePage: React.FC = () => {
             })}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between gap-2 pt-4">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="btn btn-secondary px-3 py-2 disabled:opacity-50"
-              >
-                <ChevronLeft size={18} />
-              </button>
-
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-muted">
-                  Page {currentPage} of {totalPages}
-                </span>
-              </div>
-
-              <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages}
-                className="btn btn-secondary px-3 py-2 disabled:opacity-50"
-              >
-                <ChevronRight size={18} />
-              </button>
+          {/* Pagination Component */}
+          {pagination && pagination.total_pages > 1 && (
+            <div className="mt-6 pt-4 border-t border-border">
+              <Pagination
+                currentPage={pagination.current_page}
+                totalPages={pagination.total_pages}
+                totalItems={pagination.total_items}
+                pageSize={pageSize}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                showPageSizeSelector={true}
+                pageSizeOptions={[10, 20, 50, 100]}
+              />
             </div>
           )}
 
           {/* Empty State */}
-          {filteredRecords.length === 0 && (
+          {attendanceRecords.length === 0 && (
             <div className="card p-12 text-center">
               <Calendar className="h-12 w-12 text-muted mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -739,6 +741,17 @@ const AdminAttendancePage: React.FC = () => {
           </>
         )}
       </AnimatePresence>
+
+      {/* Edit Attendance Sheet */}
+      <EditAttendanceSheet
+        isOpen={isEditSheetOpen}
+        onClose={() => {
+          setIsEditSheetOpen(false);
+          setSelectedRecordForEdit(null);
+        }}
+        record={selectedRecordForEdit}
+        onSuccess={handleEditSuccess}
+      />
     </div>
   );
 };

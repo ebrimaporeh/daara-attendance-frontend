@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
@@ -6,7 +6,6 @@ import { useAttendance } from '@/hooks/useAttendance';
 import {
   Calendar,
   Search,
-  Filter,
   Download,
   ChevronLeft,
   ChevronRight,
@@ -20,14 +19,12 @@ import {
   FileText,
   PieChart,
   CalendarDays,
-  Eye
+  Edit
 } from 'lucide-react';
 import { formatDate, getStatusBadge } from '@/utils/dateUtils';
 import toast from 'react-hot-toast';
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -38,6 +35,8 @@ import {
   AreaChart,
   Area
 } from 'recharts';
+import { EditAttendanceSheet } from '@/components/features/attendance/EditAttendanceSheet';
+import { Pagination } from '@/components/common/Pagination';
 
 const STATUS_CONFIG = {
   present: { label: "Present", color: "#10b981", icon: CheckCircle, bgColor: "bg-green-100 dark:bg-green-950/30", textColor: "text-green-800 dark:text-green-300" },
@@ -49,7 +48,7 @@ const STATUS_CONFIG = {
 
 const StudentAttendance: React.FC = () => {
   const { user } = useAuth();
-  const { useGetStudentAttendance, useGetAttendanceSummary } = useAttendance();
+  const { useGetStudentAttendance, useGetAttendanceSummary, updateAttendance } = useAttendance();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -57,19 +56,55 @@ const StudentAttendance: React.FC = () => {
     `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
   );
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'stats'>('list');
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
-  
-  const itemsPerPage = 15;
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+  const [selectedRecordForEdit, setSelectedRecordForEdit] = useState<any>(null);
 
-  const { data: attendanceRecords, isLoading: recordsLoading } = useGetStudentAttendance(user?.id || 0);
+  // Build filters for attendance query
+  const filters = useMemo(() => {
+    const filters: any = {
+      page: currentPage,
+      page_size: pageSize,
+    };
+    
+    if (statusFilter !== 'all') {
+      filters.status = statusFilter;
+    }
+    
+    if (searchQuery) {
+      filters.search = searchQuery;
+    }
+    
+    return filters;
+  }, [currentPage, pageSize, statusFilter, searchQuery]);
+
+  // Fetch attendance data with pagination
+  const { 
+    data: attendanceData, 
+    isLoading: recordsLoading, 
+    refetch 
+  } = useGetStudentAttendance(user?.id || 0, filters.page, filters.page_size);
+  
   const { data: monthlySummary } = useGetAttendanceSummary({ month: selectedMonth });
 
-  // Calculate statistics
+  // Get records and pagination info from response
+  const attendanceRecords = attendanceData?.data || [];
+  const pagination = attendanceData?.pagination;
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, searchQuery]);
+
+  // Calculate statistics from all records (not just current page)
   const stats = useMemo(() => {
-    if (!attendanceRecords) return null;
+    if (!attendanceData?.data && !attendanceRecords.length) return null;
     
-    const total = attendanceRecords.length;
+    // For stats we need all records, but since we're paginated, we'll use the pagination total
+    // This is a limitation - ideally stats would come from a separate API endpoint
+    const total = pagination?.total_items || attendanceRecords.length;
     const present = attendanceRecords.filter(r => r.status === 'present').length;
     const absent = attendanceRecords.filter(r => r.status === 'absent').length;
     const late = attendanceRecords.filter(r => r.status === 'late').length;
@@ -77,9 +112,9 @@ const StudentAttendance: React.FC = () => {
     const sick = attendanceRecords.filter(r => r.status === 'sick').length;
     const attendanceRate = total > 0 ? ((present / total) * 100).toFixed(1) : '0';
     
-    // Monthly data for chart
+    // Monthly data for chart (client-side from current records)
     const monthlyDataMap: Record<string, any> = {};
-    attendanceRecords.forEach((record) => {
+    attendanceRecords.forEach((record: any) => {
       const month = record.date.substring(0, 7);
       if (!monthlyDataMap[month]) {
         monthlyDataMap[month] = { month, present: 0, absent: 0, late: 0, total: 0 };
@@ -95,34 +130,7 @@ const StudentAttendance: React.FC = () => {
       .slice(-6);
     
     return { total, present, absent, late, excused, sick, attendanceRate, chartData };
-  }, [attendanceRecords]);
-
-  // Filter records
-  const filteredRecords = useMemo(() => {
-    if (!attendanceRecords) return [];
-    
-    let records = [...attendanceRecords];
-    
-    if (statusFilter !== 'all') {
-      records = records.filter(r => r.status === statusFilter);
-    }
-    
-    if (searchQuery) {
-      records = records.filter(r => 
-        r.date.includes(searchQuery) ||
-        r.notes?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    return records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [attendanceRecords, statusFilter, searchQuery]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
-  const paginatedRecords = filteredRecords.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  }, [attendanceRecords, pagination]);
 
   const pieChartData = stats
     ? [
@@ -135,10 +143,10 @@ const StudentAttendance: React.FC = () => {
     : [];
 
   const exportToCSV = () => {
-    if (!attendanceRecords) return;
+    if (!attendanceRecords.length) return;
     
     const headers = ['Date', 'Status', 'Notes', 'Marked By'];
-    const csvData = attendanceRecords.map(record => [
+    const csvData = attendanceRecords.map((record: any) => [
       record.date,
       record.status,
       record.notes || '',
@@ -150,10 +158,26 @@ const StudentAttendance: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `my_attendance_full_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `my_attendance_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Attendance report exported successfully');
+  };
+
+  const handleEditSuccess = () => {
+    refetch();
+    setIsEditSheetOpen(false);
+    setSelectedRecordForEdit(null);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
   };
 
   if (recordsLoading) {
@@ -185,7 +209,7 @@ const StudentAttendance: React.FC = () => {
           <button
             onClick={exportToCSV}
             className="btn btn-secondary flex items-center gap-2"
-            disabled={!attendanceRecords || attendanceRecords.length === 0}
+            disabled={!attendanceRecords.length}
           >
             <Download size={18} />
             <span className="hidden md:inline">Export</span>
@@ -218,7 +242,7 @@ const StudentAttendance: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-muted text-sm">Total Days</p>
-                <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+                <p className="text-2xl font-bold text-foreground">{pagination?.total_items || stats.total}</p>
               </div>
               <div className="bg-blue-100 dark:bg-blue-950/30 p-3 rounded-full">
                 <Calendar className="h-5 w-5 text-blue-600" />
@@ -353,10 +377,11 @@ const StudentAttendance: React.FC = () => {
                   <th className="text-left py-3 px-4 text-muted font-medium">Status</th>
                   <th className="text-left py-3 px-4 text-muted font-medium">Notes</th>
                   <th className="text-left py-3 px-4 text-muted font-medium">Marked By</th>
+                  <th className="text-left py-3 px-4 text-muted font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedRecords.map((record, index) => {
+                {attendanceRecords.map((record: any, index: number) => {
                   const badge = getStatusBadge(record.status);
                   const Icon = STATUS_CONFIG[record.status as keyof typeof STATUS_CONFIG]?.icon;
                   
@@ -366,23 +391,47 @@ const StudentAttendance: React.FC = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.02 }}
-                      className="border-b border-border hover:bg-surface-hover transition-colors cursor-pointer"
-                      onClick={() => setSelectedRecord(record)}
+                      className="border-b border-border hover:bg-surface-hover transition-colors"
                     >
-                      <td className="py-3 px-4 font-medium text-foreground">
+                      <td 
+                        className="py-3 px-4 font-medium text-foreground cursor-pointer"
+                        onClick={() => setSelectedRecord(record)}
+                      >
                         {formatDate(record.date)}
                       </td>
-                      <td className="py-3 px-4">
+                      <td 
+                        className="py-3 px-4 cursor-pointer"
+                        onClick={() => setSelectedRecord(record)}
+                      >
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
                           {Icon && <Icon size={12} />}
                           {badge.label}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-muted max-w-md truncate">
+                      <td 
+                        className="py-3 px-4 text-muted max-w-md truncate cursor-pointer"
+                        onClick={() => setSelectedRecord(record)}
+                      >
                         {record.notes || '-'}
                       </td>
-                      <td className="py-3 px-4 text-muted">
+                      <td 
+                        className="py-3 px-4 text-muted cursor-pointer"
+                        onClick={() => setSelectedRecord(record)}
+                      >
                         {record.marked_by_name || 'System'}
+                      </td>
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedRecordForEdit(record);
+                            setIsEditSheetOpen(true);
+                          }}
+                          className="p-1.5 rounded-lg text-muted hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
+                          title="Edit record"
+                        >
+                          <Edit size={16} />
+                        </button>
                       </td>
                     </motion.tr>
                   );
@@ -393,7 +442,7 @@ const StudentAttendance: React.FC = () => {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
-            {paginatedRecords.map((record, index) => {
+            {attendanceRecords.map((record: any, index: number) => {
               const badge = getStatusBadge(record.status);
               const Icon = STATUS_CONFIG[record.status as keyof typeof STATUS_CONFIG]?.icon;
               
@@ -403,23 +452,41 @@ const StudentAttendance: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.02 }}
-                  className="card p-4 cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => setSelectedRecord(record)}
+                  className="card p-4 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div>
+                    <div 
+                      className="flex-1 cursor-pointer"
+                      onClick={() => setSelectedRecord(record)}
+                    >
                       <p className="font-semibold text-foreground">{formatDate(record.date)}</p>
                       <p className="text-xs text-muted mt-0.5">
                         by {record.marked_by_name || 'System'}
                       </p>
                     </div>
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
-                      {Icon && <Icon size={12} />}
-                      {badge.label}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
+                        {Icon && <Icon size={12} />}
+                        {badge.label}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedRecordForEdit(record);
+                          setIsEditSheetOpen(true);
+                        }}
+                        className="p-1.5 rounded-lg text-muted hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
+                        title="Edit record"
+                      >
+                        <Edit size={16} />
+                      </button>
+                    </div>
                   </div>
                   {record.notes && (
-                    <div className="text-sm text-muted border-t border-border pt-2 mt-2">
+                    <div 
+                      className="text-sm text-muted border-t border-border pt-2 mt-2 cursor-pointer"
+                      onClick={() => setSelectedRecord(record)}
+                    >
                       <span className="font-medium">Notes:</span> {record.notes}
                     </div>
                   )}
@@ -429,34 +496,23 @@ const StudentAttendance: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between gap-2 pt-4">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="btn btn-secondary px-3 py-2 disabled:opacity-50"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-muted">
-                  Page {currentPage} of {totalPages}
-                </span>
-              </div>
-              
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="btn btn-secondary px-3 py-2 disabled:opacity-50"
-              >
-                <ChevronRight size={18} />
-              </button>
+          {pagination && pagination.total_pages > 1 && (
+            <div className="mt-6 pt-4 border-t border-border">
+              <Pagination
+                currentPage={pagination.current_page}
+                totalPages={pagination.total_pages}
+                totalItems={pagination.total_items}
+                pageSize={pageSize}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                showPageSizeSelector={true}
+                pageSizeOptions={[10, 15, 25, 50]}
+              />
             </div>
           )}
 
           {/* Empty State */}
-          {filteredRecords.length === 0 && (
+          {attendanceRecords.length === 0 && (
             <div className="card p-12 text-center">
               <Calendar className="h-12 w-12 text-muted mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">No Records Found</h3>
@@ -595,7 +651,7 @@ const StudentAttendance: React.FC = () => {
             </h3>
             <div className="space-y-4">
               {stats.chartData.slice().reverse().map((month: any) => {
-                const rate = (month.present / month.total) * 100;
+                const rate = month.total > 0 ? (month.present / month.total) * 100 : 0;
                 return (
                   <div key={month.month}>
                     <div className="flex justify-between items-center mb-2">
@@ -675,11 +731,37 @@ const StudentAttendance: React.FC = () => {
                     <span className="text-foreground">{selectedRecord.marked_by_name || 'System'}</span>
                   </div>
                 </div>
+
+                {/* Edit Button in Modal */}
+                <div className="pt-4 mt-4 border-t border-border">
+                  <button
+                    onClick={() => {
+                      setSelectedRecord(null);
+                      setSelectedRecordForEdit(selectedRecord);
+                      setIsEditSheetOpen(true);
+                    }}
+                    className="w-full btn btn-primary flex items-center justify-center gap-2"
+                  >
+                    <Edit size={18} />
+                    Edit Record
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+
+      {/* Edit Attendance Sheet */}
+      <EditAttendanceSheet
+        isOpen={isEditSheetOpen}
+        onClose={() => {
+          setIsEditSheetOpen(false);
+          setSelectedRecordForEdit(null);
+        }}
+        record={selectedRecordForEdit}
+        onSuccess={handleEditSuccess}
+      />
     </div>
   );
 };

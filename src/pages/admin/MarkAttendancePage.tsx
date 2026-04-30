@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -18,13 +18,13 @@ import {
   UserX,
   Clock as ClockIcon,
   Activity,
-  ChevronLeft,
-  ChevronRight
+  X
 } from 'lucide-react';
 import { useUsers } from '@/hooks/useUsers';
 import { useAttendance } from '@/hooks/useAttendance';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { Pagination } from '@/components/common/Pagination';
 
 type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused' | 'sick';
 
@@ -73,22 +73,57 @@ const STATUS_CONFIG: Record<AttendanceStatus, { label: string; color: string; bg
 const MarkAttendance: React.FC = () => {
   const queryClient = useQueryClient();
   const { useGetStudents } = useUsers();
-  const { createAttendance, bulkCreateAttendance } = useAttendance();
+  const { bulkCreateAttendance } = useAttendance();
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<AttendanceStatus | 'all'>('all');
   const [studentsAttendance, setStudentsAttendance] = useState<StudentAttendance[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const [pageSize, setPageSize] = useState(20);
 
-  const { data: students, isLoading: studentsLoading } = useGetStudents();
-
-  // Initialize attendance records for students
+  // Debounce search input - only search after 3 characters
   useEffect(() => {
-    if (students) {
+    // Don't trigger search if input is cleared
+    if (searchInput === '') {
+      setDebouncedSearch('');
+      return;
+    }
+    
+    // Only trigger search after 3 or more characters
+    if (searchInput.length >= 3) {
+      const timer = setTimeout(() => {
+        setDebouncedSearch(searchInput);
+      }, 500); // 500ms debounce delay
+      
+      return () => clearTimeout(timer);
+    } else {
+      // Clear search if less than 3 characters
+      setDebouncedSearch('');
+    }
+  }, [searchInput]);
+
+  // Fetch students with pagination and debounced search
+  const { 
+    data: studentsData, 
+    isLoading: studentsLoading,
+    refetch: refetchStudents
+  } = useGetStudents({
+    page: currentPage,
+    page_size: pageSize,
+    search: debouncedSearch || undefined,
+  });
+
+  // Get students and pagination from response
+  const students = studentsData?.data || [];
+  const pagination = studentsData?.pagination;
+
+  // Initialize attendance records for students when data changes
+  useEffect(() => {
+    if (students && students.length > 0) {
       setStudentsAttendance(
         students.map(student => ({
           studentId: student.id,
@@ -102,92 +137,16 @@ const MarkAttendance: React.FC = () => {
     }
   }, [students]);
 
-  // Filter students based on search and status filter
-  const filteredStudents = useMemo(() => {
-    let filtered = studentsAttendance;
-    
-    if (searchQuery) {
-      filtered = filtered.filter(s => 
-        s.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.studentPhone.includes(searchQuery)
-      );
-    }
-    
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(s => s.status === selectedStatus);
-    }
-    
-    return filtered;
-  }, [studentsAttendance, searchQuery, selectedStatus]);
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-  const paginatedStudents = filteredStudents.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const updateStudentStatus = (studentId: number, status: AttendanceStatus) => {
-    setStudentsAttendance(prev =>
-      prev.map(s =>
-        s.studentId === studentId
-          ? { ...s, status, isChanged: true }
-          : s
-      )
-    );
-  };
-
-  const bulkUpdateStatus = (status: AttendanceStatus) => {
-    setStudentsAttendance(prev =>
-      prev.map(s => ({ ...s, status, isChanged: true }))
-    );
-    toast.success(`All students marked as ${STATUS_CONFIG[status].label}`);
-    setShowBulkActions(false);
-  };
-
-  const handleSaveAttendance = async () => {
-    setIsSaving(true);
-    
-    // Group records by status for bulk creation
-    const recordsByStatus: Record<AttendanceStatus, number[]> = {
-      present: [],
-      absent: [],
-      late: [],
-      excused: [],
-      sick: []
-    };
-    
-    studentsAttendance.forEach(student => {
-      recordsByStatus[student.status].push(student.studentId);
-    });
-    
-    const promises = [];
-    
-    // Create bulk records for each status
-    for (const [status, studentIds] of Object.entries(recordsByStatus)) {
-      if (studentIds.length > 0) {
-        const records = studentIds.map(studentId => ({
-          student: studentId,
-          status,
-          date: selectedDate,
-          notes: `${STATUS_CONFIG[status as AttendanceStatus].label} - Marked via bulk attendance`
-        }));
-        
-        promises.push(bulkCreateAttendance({ records, date: selectedDate }));
-      }
-    }
-    
-    try {
-      await Promise.all(promises);
-      toast.success(`Attendance saved for ${studentsAttendance.length} students`);
-      queryClient.invalidateQueries({ queryKey: ['attendance'] });
-      setStudentsAttendance(prev => prev.map(s => ({ ...s, isChanged: false })));
-    } catch (error) {
-      toast.error('Failed to save attendance');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // Filter students locally by status (since status is client-side only)
+  const filteredByStatus = useMemo(() => {
+    if (selectedStatus === 'all') return studentsAttendance;
+    return studentsAttendance.filter(s => s.status === selectedStatus);
+  }, [studentsAttendance, selectedStatus]);
 
   const getStatusStats = () => {
     const stats = {
@@ -207,7 +166,100 @@ const MarkAttendance: React.FC = () => {
 
   const statusStats = getStatusStats();
 
-  if (studentsLoading) {
+  const updateStudentStatus = (studentId: number, status: AttendanceStatus) => {
+    setStudentsAttendance(prev =>
+      prev.map(s =>
+        s.studentId === studentId
+          ? { ...s, status, isChanged: true }
+          : s
+      )
+    );
+  };
+
+  const bulkUpdateStatus = (status: AttendanceStatus) => {
+    setStudentsAttendance(prev =>
+      prev.map(s => ({ ...s, status, isChanged: true }))
+    );
+    toast.success(`All students on current page marked as ${STATUS_CONFIG[status].label}`);
+    setShowBulkActions(false);
+  };
+
+  const handleSaveAttendance = async () => {
+    setIsSaving(true);
+    
+    try {
+      // Group records by status for bulk creation
+      const recordsByStatus: Record<AttendanceStatus, number[]> = {
+        present: [],
+        absent: [],
+        late: [],
+        excused: [],
+        sick: []
+      };
+      
+      studentsAttendance.forEach(student => {
+        recordsByStatus[student.status].push(student.studentId);
+      });
+      
+      const promises = [];
+      
+      // Create bulk records for each status
+      for (const [status, studentIds] of Object.entries(recordsByStatus)) {
+        if (studentIds.length > 0) {
+          const records = studentIds.map(studentId => ({
+            student: studentId,
+            status,
+            date: selectedDate,
+            notes: `${STATUS_CONFIG[status as AttendanceStatus].label} - Marked via bulk attendance`
+          }));
+          
+          promises.push(bulkCreateAttendance({ records, date: selectedDate }));
+        }
+      }
+      
+      await Promise.all(promises);
+      toast.success(`Attendance saved for ${studentsAttendance.length} students`);
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      setStudentsAttendance(prev => prev.map(s => ({ ...s, isChanged: false })));
+    } catch (error) {
+      toast.error('Failed to save attendance');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
+  const clearSearch = () => {
+    setSearchInput('');
+    setDebouncedSearch('');
+  };
+
+  // Show loading indicator only on initial load or when searching with 3+ characters
+  const showLoading = studentsLoading && !students.length;
+
+  // Get search status message
+  const getSearchStatusMessage = () => {
+    if (searchInput.length > 0 && searchInput.length < 3) {
+      return "Type at least 3 characters to search";
+    }
+    if (debouncedSearch && students.length === 0 && !studentsLoading) {
+      return `No students found matching "${debouncedSearch}"`;
+    }
+    return null;
+  };
+
+  const searchStatusMessage = getSearchStatusMessage();
+
+  if (showLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -287,33 +339,63 @@ const MarkAttendance: React.FC = () => {
       {/* Bulk Actions Bar */}
       <div className="relative">
         <div className="card p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setShowBulkActions(!showBulkActions)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-950/30 text-primary-600"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-950/30 text-primary-600 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors"
               >
                 <Filter size={18} />
                 <span className="text-sm font-medium">Bulk Actions</span>
                 <ChevronDown size={16} className={`transition-transform ${showBulkActions ? 'rotate-180' : ''}`} />
               </button>
               
-              <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search students..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input pl-9 text-sm"
-                />
-              </div>
+              {/* Status Filter */}
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value as AttendanceStatus | 'all')}
+                className="input text-sm w-auto"
+              >
+                <option value="all">All Status</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="late">Late</option>
+                <option value="excused">Excused</option>
+                <option value="sick">Sick</option>
+              </select>
+            </div>
+            
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted" />
+              <input
+                type="text"
+                placeholder="Type at least 3 characters to search..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="input pl-9 pr-8 text-sm w-full"
+              />
+              {searchInput && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-foreground transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
             
             <div className="text-sm text-muted">
-              {filteredStudents.length} / {studentsAttendance.length} students
+              Showing {students.length} students
+              {pagination && ` of ${pagination.total_items}`}
             </div>
           </div>
+          
+          {/* Search status message */}
+          {searchStatusMessage && (
+            <div className="mt-2 text-xs text-muted italic">
+              {searchStatusMessage}
+            </div>
+          )}
           
           <AnimatePresence>
             {showBulkActions && (
@@ -323,7 +405,7 @@ const MarkAttendance: React.FC = () => {
                 exit={{ opacity: 0, height: 0 }}
                 className="mt-3 pt-3 border-t border-border"
               >
-                <div className="text-sm text-muted mb-2">Mark all students as:</div>
+                <div className="text-sm text-muted mb-2">Mark all students on current page as:</div>
                 <div className="grid grid-cols-5 gap-2">
                   {Object.entries(STATUS_CONFIG).map(([status, config]) => (
                     <button
@@ -346,7 +428,7 @@ const MarkAttendance: React.FC = () => {
 
       {/* Student List */}
       <div className="space-y-3">
-        {paginatedStudents.map((student, index) => {
+        {filteredByStatus.map((student, index) => {
           const config = STATUS_CONFIG[student.status];
           const Icon = config.icon;
           
@@ -355,7 +437,7 @@ const MarkAttendance: React.FC = () => {
               key={student.studentId}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.01 }}
+              transition={{ delay: index * 0.02 }}
               className={`card p-4 transition-all ${student.isChanged ? 'ring-2 ring-primary-500' : ''}`}
             >
               <div className="flex items-center justify-between gap-3">
@@ -375,7 +457,6 @@ const MarkAttendance: React.FC = () => {
                     value={student.status}
                     onChange={(e) => updateStudentStatus(student.studentId, e.target.value as AttendanceStatus)}
                     className="appearance-none bg-transparent pl-8 pr-6 py-2 rounded-lg text-sm font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    style={{ color: config.color.replace('text-', '') }}
                   >
                     {Object.entries(STATUS_CONFIG).map(([status, cfg]) => (
                       <option key={status} value={status} className="text-foreground">
@@ -398,53 +479,36 @@ const MarkAttendance: React.FC = () => {
         })}
       </div>
 
+      {/* Empty State */}
+      {filteredByStatus.length === 0 && (
+        <div className="card p-12 text-center">
+          <Users className="h-12 w-12 text-muted mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No Students Found</h3>
+          <p className="text-muted">
+            {searchInput.length > 0 && searchInput.length < 3
+              ? 'Please type at least 3 characters to search for students.'
+              : searchInput.length >= 3
+                ? `No students found matching "${searchInput}". Try a different search term.`
+                : selectedStatus !== 'all'
+                  ? `No students with status "${STATUS_CONFIG[selectedStatus].label}" found.`
+                  : 'No students available to mark attendance.'}
+          </p>
+        </div>
+      )}
+
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-2 pt-4">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="btn btn-secondary px-3 py-2 disabled:opacity-50"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          
-          <div className="flex items-center gap-1 overflow-x-auto">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-              
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                    currentPage === pageNum
-                      ? 'bg-primary-600 text-white'
-                      : 'text-muted hover:bg-surface-hover'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-          </div>
-          
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="btn btn-secondary px-3 py-2 disabled:opacity-50"
-          >
-            <ChevronRight size={18} />
-          </button>
+      {pagination && pagination.total_pages > 1 && (
+        <div className="mt-6 pt-4 border-t border-border">
+          <Pagination
+            currentPage={pagination.current_page}
+            totalPages={pagination.total_pages}
+            totalItems={pagination.total_items}
+            pageSize={pageSize}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+            showPageSizeSelector={true}
+            pageSizeOptions={[10, 20, 30, 50]}
+          />
         </div>
       )}
 

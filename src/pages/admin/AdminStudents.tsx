@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useMemo, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, 
   Search, 
@@ -28,9 +28,11 @@ import { useUsers } from '@/hooks/useUsers';
 import { useAttendance } from '@/hooks/useAttendance';
 import { formatDate, getStatusBadge } from '@/utils/dateUtils';
 import toast from 'react-hot-toast';
-import { User } from '@/types';
+import { User, UserFilters } from '@/types';
+import { Pagination } from '@/components/common/Pagination';
 
 const AdminStudentsPage: React.FC = () => {
+  const queryClient = useQueryClient();
   const { useGetStudents } = useUsers();
   const { useGetAttendanceSummary } = useAttendance();
   
@@ -38,6 +40,7 @@ const AdminStudentsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'attendance'>('name');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -48,38 +51,51 @@ const AdminStudentsPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
   
-  const itemsPerPage = 12;
+  // Build filters based on current state
+  const filters = useMemo(() => {
+    const filters: UserFilters = {
+      page: currentPage,
+      page_size: pageSize,
+    };
+    
+    if (searchQuery) {
+      filters.search = searchQuery;
+    }
+    
+    if (statusFilter !== 'all') {
+      filters.is_active = statusFilter === 'active';
+    }
+    
+    return filters;
+  }, [currentPage, pageSize, searchQuery, statusFilter]);
 
-  const { data: students, isLoading: studentsLoading, refetch } = useGetStudents();
+  // Fetch students with pagination
+  const { 
+    data: studentsData, 
+    isLoading: studentsLoading, 
+    refetch 
+  } = useGetStudents(filters);
+  
   const { data: monthlySummary } = useGetAttendanceSummary({ 
     month: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}` 
   });
 
-  // Filter and sort students
-  const filteredStudents = useMemo(() => {
-    if (!students) return [];
+  // Get students and pagination from response
+  const students = studentsData?.data || [];
+  const pagination = studentsData?.pagination;
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
+
+  // Sort students (client-side sorting since pagination is handled by backend)
+  const sortedStudents = useMemo(() => {
+    if (!students.length) return [];
     
-    let filtered = [...students];
+    const sorted = [...students];
     
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(s => 
-        `${s.first_name} ${s.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.phone.includes(searchQuery) ||
-        s.fathers_first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.email?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(s => 
-        statusFilter === 'active' ? s.is_active !== false : s.is_active === false
-      );
-    }
-    
-    // Apply sorting
-    filtered.sort((a, b) => {
+    sorted.sort((a, b) => {
       if (sortBy === 'name') {
         return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
       } else if (sortBy === 'date') {
@@ -88,17 +104,11 @@ const AdminStudentsPage: React.FC = () => {
       return 0;
     });
     
-    return filtered;
-  }, [students, searchQuery, statusFilter, sortBy]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-  const paginatedStudents = filteredStudents.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+    return sorted;
+  }, [students, sortBy]);
 
   const handleDeleteStudent = async () => {
+    // This would call an API to delete the student
     toast.success(`Student ${studentToDelete?.first_name} ${studentToDelete?.last_name} deleted`);
     setShowDeleteModal(false);
     setStudentToDelete(null);
@@ -113,16 +123,16 @@ const AdminStudentsPage: React.FC = () => {
   };
 
   const handleBulkExport = () => {
-    const selectedData = students?.filter(s => selectedStudents.includes(s.id));
+    const selectedData = students.filter(s => selectedStudents.includes(s.id));
     const headers = ['Name', 'Father\'s Name', 'Phone', 'Email', 'Join Date', 'Status'];
-    const csvData = selectedData?.map(student => [
+    const csvData = selectedData.map(student => [
       `${student.first_name} ${student.last_name}`,
       student.fathers_first_name,
       student.phone,
       student.email || '',
       formatDate(student.date_joined || new Date().toISOString()),
       student.is_active !== false ? 'Active' : 'Inactive'
-    ]) || [];
+    ]);
     
     const csvContent = [headers, ...csvData].map(row => row.join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -145,15 +155,25 @@ const AdminStudentsPage: React.FC = () => {
   };
 
   const toggleAllSelection = () => {
-    if (selectedStudents.length === paginatedStudents.length) {
+    if (selectedStudents.length === sortedStudents.length) {
       setSelectedStudents([]);
     } else {
-      setSelectedStudents(paginatedStudents.map(s => s.id));
+      setSelectedStudents(sortedStudents.map(s => s.id));
     }
   };
 
-  // Fixed: Removed unused parameter
-  const getAttendanceStats = () => {
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
+  const getAttendanceStats = (studentId?: number) => {
+    // This would fetch real attendance stats from API
     return {
       present: 85,
       absent: 10,
@@ -223,7 +243,7 @@ const AdminStudentsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-sm">Total Students</p>
-              <p className="text-2xl font-bold text-foreground">{students?.length || 0}</p>
+              <p className="text-2xl font-bold text-foreground">{pagination?.total_items || students.length}</p>
               <p className="text-xs text-success-600 mt-1">+12 this month</p>
             </div>
             <div className="bg-primary-100 dark:bg-primary-950/30 p-3 rounded-full">
@@ -242,7 +262,7 @@ const AdminStudentsPage: React.FC = () => {
             <div>
               <p className="text-muted text-sm">Active Students</p>
               <p className="text-2xl font-bold text-foreground">
-                {students?.filter(s => s.is_active !== false).length || 0}
+                {students.filter(s => s.is_active !== false).length}
               </p>
               <p className="text-xs text-success-600 mt-1">95% of total</p>
             </div>
@@ -377,8 +397,8 @@ const AdminStudentsPage: React.FC = () => {
       {/* Students Grid View */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {paginatedStudents.map((student, index) => {
-            const stats = getAttendanceStats();
+          {sortedStudents.map((student, index) => {
+            const stats = getAttendanceStats(student.id);
             const isSelected = selectedStudents.includes(student.id);
             
             return (
@@ -522,7 +542,7 @@ const AdminStudentsPage: React.FC = () => {
                   <th className="py-3 px-4 w-8">
                     <input
                       type="checkbox"
-                      checked={selectedStudents.length === paginatedStudents.length && paginatedStudents.length > 0}
+                      checked={selectedStudents.length === sortedStudents.length && sortedStudents.length > 0}
                       onChange={toggleAllSelection}
                       className="w-4 h-4 rounded border-border text-primary-600 focus:ring-primary-500"
                     />
@@ -537,8 +557,8 @@ const AdminStudentsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {paginatedStudents.map((student) => {
-                  const stats = getAttendanceStats();
+                {sortedStudents.map((student) => {
+                  const stats = getAttendanceStats(student.id);
                   const isSelected = selectedStudents.includes(student.id);
                   
                   return (
@@ -557,7 +577,7 @@ const AdminStudentsPage: React.FC = () => {
                           onChange={() => toggleStudentSelection(student.id)}
                           className="w-4 h-4 rounded border-border text-primary-600 focus:ring-primary-500"
                         />
-                      </td>
+                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
@@ -569,12 +589,12 @@ const AdminStudentsPage: React.FC = () => {
                             {student.first_name} {student.last_name}
                           </span>
                         </div>
-                      </td>
+                       </td>
                       <td className="py-3 px-4 text-foreground">{student.fathers_first_name}</td>
                       <td className="py-3 px-4 text-muted">{student.phone}</td>
                       <td className="py-3 px-4 text-muted text-sm">
                         {formatDate(student.date_joined || new Date().toISOString())}
-                      </td>
+                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
@@ -585,7 +605,7 @@ const AdminStudentsPage: React.FC = () => {
                           </div>
                           <span className="text-xs text-muted">{stats.attendanceRate}%</span>
                         </div>
-                      </td>
+                       </td>
                       <td className="py-3 px-4">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
                           student.is_active !== false 
@@ -595,7 +615,7 @@ const AdminStudentsPage: React.FC = () => {
                           {student.is_active !== false ? <UserCheck size={12} /> : <UserX size={12} />}
                           {student.is_active !== false ? 'Active' : 'Inactive'}
                         </span>
-                      </td>
+                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <Link
@@ -624,7 +644,7 @@ const AdminStudentsPage: React.FC = () => {
                             <Trash2 size={16} />
                           </button>
                         </div>
-                      </td>
+                       </td>
                     </motion.tr>
                   );
                 })}
@@ -637,8 +657,8 @@ const AdminStudentsPage: React.FC = () => {
       {/* Mobile List View */}
       {viewMode === 'list' && (
         <div className="md:hidden space-y-3">
-          {paginatedStudents.map((student) => {
-            const stats = getAttendanceStats();
+          {sortedStudents.map((student) => {
+            const stats = getAttendanceStats(student.id);
             const isSelected = selectedStudents.includes(student.id);
             
             return (
@@ -721,57 +741,23 @@ const AdminStudentsPage: React.FC = () => {
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-2 pt-4">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="btn btn-secondary px-3 py-2 disabled:opacity-50"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          
-          <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-              
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                    currentPage === pageNum
-                      ? 'bg-primary-600 text-white'
-                      : 'text-muted hover:bg-surface-hover'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-          </div>
-          
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="btn btn-secondary px-3 py-2 disabled:opacity-50"
-          >
-            <ChevronRight size={18} />
-          </button>
+      {pagination && pagination.total_pages > 1 && (
+        <div className="mt-6 pt-4 border-t border-border">
+          <Pagination
+            currentPage={pagination.current_page}
+            totalPages={pagination.total_pages}
+            totalItems={pagination.total_items}
+            pageSize={pageSize}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+            showPageSizeSelector={true}
+            pageSizeOptions={[12, 24, 48, 96]}
+          />
         </div>
       )}
 
       {/* Empty State */}
-      {filteredStudents.length === 0 && (
+      {sortedStudents.length === 0 && (
         <div className="card p-12 text-center">
           <Users className="h-12 w-12 text-muted mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">No Students Found</h3>

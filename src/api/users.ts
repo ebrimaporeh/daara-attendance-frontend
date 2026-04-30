@@ -1,20 +1,48 @@
+// src/api/users.ts
 import { apiClient } from './client';
-import { User } from '@/types';
+import { User, PaginatedResponse, UserFilters } from '@/types';
 
 export const usersApi = {
-  // Get all students
-  getStudents: (): Promise<User[]> => {
-    return apiClient.get('/users/students/');
+  // Get all students with pagination
+  getStudents: (filters?: UserFilters): Promise<PaginatedResponse<User>> => {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = params.toString();
+    return apiClient.get(`/users/students/${queryString ? `?${queryString}` : ''}`);
   },
 
-  // Get all admins
-  getAdmins: (): Promise<User[]> => {
-    return apiClient.get('/users/admins/');
+  // Get all admins with pagination
+  getAdmins: (filters?: UserFilters): Promise<PaginatedResponse<User>> => {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = params.toString();
+    return apiClient.get(`/users/admins/${queryString ? `?${queryString}` : ''}`);
   },
 
-  // Get all users (admin only)
-  getAllUsers: (): Promise<User[]> => {
-    return apiClient.get('/users/');
+  // Get all users with pagination (admin only)
+  getAllUsers: (filters?: UserFilters): Promise<PaginatedResponse<User>> => {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = params.toString();
+    return apiClient.get(`/users/${queryString ? `?${queryString}` : ''}`);
   },
 
   // Get specific user by ID

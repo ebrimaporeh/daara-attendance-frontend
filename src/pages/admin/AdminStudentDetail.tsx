@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useParams, Link, useRouter } from "@tanstack/react-router";
+import { useParams, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -48,6 +48,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { Pagination } from "@/components/common/Pagination";
 
 interface MonthlyData {
   month: string;
@@ -86,7 +87,6 @@ const STATUS_CONFIG = {
 
 const AdminStudentDetailPage: React.FC = () => {
   const { id } = useParams({ from: "/admin/students/$id" });
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { useGetUser } = useUsers();
   const { useGetStudentAttendance, deleteAttendance } = useAttendance();
@@ -98,13 +98,23 @@ const AdminStudentDetailPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [showDeleteRecordModal, setShowDeleteRecordModal] = useState(false);
-  const [dateRange] = useState<"week" | "month" | "year">("month");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+  const [dateRange, setDateRange] = useState<"week" | "month" | "year">("month");
 
   const studentId = parseInt(id as string);
 
   const { data: student, isLoading: studentLoading } = useGetUser(studentId);
-  const { data: attendanceRecords, isLoading: attendanceLoading } =
-    useGetStudentAttendance(studentId);
+  
+  // Fetch attendance records with pagination
+  const { 
+    data: attendanceData, 
+    isLoading: attendanceLoading,
+    refetch: refetchAttendance 
+  } = useGetStudentAttendance(studentId, currentPage, pageSize);
+
+  const attendanceRecords = attendanceData?.data || [];
+  const pagination = attendanceData?.pagination;
 
   const deleteAttendanceMutation = useMutation<void, Error, number>({
     mutationFn: async (recordId: number) => {
@@ -117,14 +127,27 @@ const AdminStudentDetailPage: React.FC = () => {
       toast.success("Attendance record deleted successfully");
       setShowDeleteRecordModal(false);
       setSelectedRecord(null);
+      refetchAttendance();
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to delete attendance record");
     },
   });
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
+  // For stats, we need all records. This would ideally come from a separate API endpoint
+  // For now, we'll calculate from the paginated data (this is a limitation)
   const stats: StatsData | null = React.useMemo(() => {
-    if (!attendanceRecords) return null;
+    if (!attendanceRecords.length) return null;
 
     const total = attendanceRecords.length;
     const present = attendanceRecords.filter(
@@ -141,7 +164,7 @@ const AdminStudentDetailPage: React.FC = () => {
 
     const attendanceRate = total > 0 ? ((present / total) * 100).toFixed(1) : "0";
 
-    // Calculate current streak
+    // Calculate current streak (from paginated records - this may not be fully accurate)
     let streak = 0;
     const sortedRecords = [...attendanceRecords].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
@@ -206,10 +229,8 @@ const AdminStudentDetailPage: React.FC = () => {
       ].filter((item) => item.value > 0)
     : [];
 
- 
-
   const exportAttendanceReport = () => {
-    if (!attendanceRecords) return;
+    if (!attendanceRecords.length) return;
 
     const headers = ["Date", "Status", "Notes", "Marked By"];
     const csvData = attendanceRecords.map((record) => [
@@ -283,6 +304,7 @@ const AdminStudentDetailPage: React.FC = () => {
             onClick={exportAttendanceReport}
             className="btn btn-secondary p-2 md:px-4 md:py-2"
             title="Export Report"
+            disabled={!attendanceRecords.length}
           >
             <Download size={18} />
             <span className="hidden md:inline ml-2">Export</span>
@@ -306,7 +328,7 @@ const AdminStudentDetailPage: React.FC = () => {
 
       {/* Profile Header Card */}
       <div className="card overflow-hidden">
-        <div className="bg-linear-to-r from-primary-600 to-primary-800 p-6 md:p-8">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-800 p-6 md:p-8">
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="w-24 h-24 md:w-32 md:h-32 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
               <span className="text-white text-3xl md:text-4xl font-bold">
@@ -325,8 +347,7 @@ const AdminStudentDetailPage: React.FC = () => {
               <div className="flex flex-wrap gap-3 mt-3 justify-center md:justify-start">
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-white/20 rounded-full text-xs text-white">
                   <Calendar size={12} />
-                  Joined{" "}
-                  {formatDate(student.date_joined || new Date().toISOString())}
+                  Joined {formatDate(student.date_joined || new Date().toISOString())}
                 </span>
                 <span
                   className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
@@ -596,6 +617,7 @@ const AdminStudentDetailPage: React.FC = () => {
                 {["week", "month", "year"].map((range) => (
                   <button
                     key={range}
+                    onClick={() => setDateRange(range as any)}
                     className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                       dateRange === range
                         ? "bg-primary-600 text-white"
@@ -609,6 +631,7 @@ const AdminStudentDetailPage: React.FC = () => {
               <button
                 onClick={exportAttendanceReport}
                 className="btn btn-secondary flex items-center gap-2 text-sm"
+                disabled={!attendanceRecords.length}
               >
                 <Download size={16} />
                 Export All
@@ -617,7 +640,7 @@ const AdminStudentDetailPage: React.FC = () => {
           </div>
 
           <div className="space-y-3">
-            {attendanceRecords?.map((record) => {
+            {attendanceRecords.map((record) => {
               const badge = getStatusBadge(record.status);
               const Icon =
                 STATUS_CONFIG[record.status as keyof typeof STATUS_CONFIG]
@@ -673,7 +696,7 @@ const AdminStudentDetailPage: React.FC = () => {
               );
             })}
 
-            {attendanceRecords?.length === 0 && (
+            {attendanceRecords.length === 0 && (
               <div className="card p-12 text-center">
                 <CalendarIcon className="h-12 w-12 text-muted mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -685,18 +708,34 @@ const AdminStudentDetailPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Pagination */}
+          {pagination && pagination.total_pages > 1 && (
+            <div className="mt-6 pt-4 border-t border-border">
+              <Pagination
+                currentPage={pagination.current_page}
+                totalPages={pagination.total_pages}
+                totalItems={pagination.total_items}
+                pageSize={pageSize}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                showPageSizeSelector={true}
+                pageSizeOptions={[10, 15, 25, 50]}
+              />
+            </div>
+          )}
         </div>
       )}
 
       {/* Performance Tab */}
-      {activeTab === "performance" && stats && (
+      {activeTab === "performance" && stats && stats.chartData.length > 0 && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {stats.chartData
               .slice()
               .reverse()
               .map((month, idx) => {
-                const rate = (month.present / month.total) * 100;
+                const rate = month.total > 0 ? (month.present / month.total) * 100 : 0;
                 return (
                   <motion.div
                     key={idx}
@@ -708,7 +747,7 @@ const AdminStudentDetailPage: React.FC = () => {
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <h4 className="font-semibold text-foreground">
-                          {month.month}
+                          {new Date(month.month).toLocaleString('default', { month: 'long', year: 'numeric' })}
                         </h4>
                         <p className="text-xs text-muted">
                           {month.total} school days
@@ -798,7 +837,7 @@ const AdminStudentDetailPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-foreground">Admin User</p>
-                    <p className="text-xs text-muted">April 13, 2026</p>
+                    <p className="text-xs text-muted">{formatDate(new Date().toISOString())}</p>
                   </div>
                 </div>
                 <button className="text-muted hover:text-foreground">
@@ -812,6 +851,57 @@ const AdminStudentDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Record Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteRecordModal && selectedRecord && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 z-50"
+              onClick={() => setShowDeleteRecordModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-surface rounded-xl shadow-xl z-50 p-6"
+            >
+              <div className="text-center mb-4">
+                <div className="mx-auto w-12 h-12 bg-error-100 rounded-full flex items-center justify-center mb-4">
+                  <Trash2 className="h-6 w-6 text-error-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Delete Attendance Record
+                </h3>
+                <p className="text-muted text-sm">
+                  Are you sure you want to delete the attendance record for{" "}
+                  {formatDate(selectedRecord.date)}? This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteRecordModal(false)}
+                  className="flex-1 btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteAttendanceMutation.mutate(selectedRecord.id)}
+                  disabled={deleteAttendanceMutation.isPending}
+                  className="flex-1 btn btn-danger"
+                >
+                  {deleteAttendanceMutation.isPending ? (
+                    <RefreshCw size={16} className="animate-spin" />
+                  ) : (
+                    "Delete"
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

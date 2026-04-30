@@ -1,3 +1,4 @@
+// src/types/index.ts
 export interface User {
   id: number;
   first_name: string;
@@ -57,9 +58,40 @@ export interface ApiError {
   [key: string]: any;
 }
 
+export interface PaginationMetadata {
+  current_page: number;
+  total_pages: number;
+  total_items: number;
+  has_next: boolean;
+  has_previous: boolean;
+  page_size: number;
+}
+
 export interface PaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
+  status: string;
+  message: string;
+  data: T[];
+  pagination: PaginationMetadata;
+}
+
+// Base filter interface
+export interface BaseFilters {
+  page?: number;
+  page_size?: number;
+  search?: string;
+}
+
+// Attendance specific filters
+export interface AttendanceFilters extends BaseFilters {
+  status?: string;
+  date?: string;
+  start_date?: string;
+  end_date?: string;
+  student_id?: number;
+}
+
+// User specific filters
+export interface UserFilters extends BaseFilters {
+  user_type?: 'student' | 'admin';
+  is_active?: boolean;
 }

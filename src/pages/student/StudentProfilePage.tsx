@@ -51,20 +51,30 @@ const StudentProfile: React.FC = () => {
   });
 
   const { data: studentDetail } = useGetUser(user?.id || 0);
-  const { data: attendanceRecords } = useGetStudentAttendance(user?.id || 0);
+  const { data: attendanceData, isLoading: attendanceLoading } = useGetStudentAttendance(user?.id || 0);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-  } = useForm<ChangePasswordFormData>({
-    resolver: zodResolver(changePasswordSchema),
-  });
+  // Extract attendance records from paginated response
+  const attendanceRecords = React.useMemo(() => {
+    // Check if attendanceData has the paginated structure
+    if (attendanceData && Array.isArray(attendanceData)) {
+      return attendanceData;
+    }
+    // Handle paginated response with 'data' property
+    if (attendanceData && attendanceData.data && Array.isArray(attendanceData.data)) {
+      return attendanceData.data;
+    }
+    // Handle response with 'results' property (DRF standard)
+    if (attendanceData && attendanceData.results && Array.isArray(attendanceData.results)) {
+      return attendanceData.results;
+    }
+    return [];
+  }, [attendanceData]);
 
   // Calculate attendance stats
   const stats = React.useMemo(() => {
-    if (!attendanceRecords) return null;
+    if (!attendanceRecords || attendanceRecords.length === 0) {
+      return { total: 0, present: 0, attendanceRate: '0', streak: 0 };
+    }
     
     const total = attendanceRecords.length;
     const present = attendanceRecords.filter(r => r.status === 'present').length;
@@ -82,6 +92,15 @@ const StudentProfile: React.FC = () => {
     
     return { total, present, attendanceRate, streak };
   }, [attendanceRecords]);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm<ChangePasswordFormData>({
+    resolver: zodResolver(changePasswordSchema),
+  });
 
   const handleEditSubmit = async () => {
     try {

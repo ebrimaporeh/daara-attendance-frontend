@@ -34,9 +34,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
-  Legend
 } from 'recharts';
 
 interface MonthlyData {
@@ -47,6 +44,21 @@ interface MonthlyData {
   total: number;
 }
 
+interface StatsData {
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+  sick: number;
+  attendanceRate: string;
+  streak: number;
+  thisMonthRate: string;
+  thisMonthPresent: number;
+  thisMonthTotal: number;
+  chartData: MonthlyData[];
+}
+
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
   const { useGetStudentAttendance, useGetAttendanceSummary } = useAttendance();
@@ -55,26 +67,36 @@ const StudentDashboard: React.FC = () => {
     `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
   );
   
-  const { data: attendanceRecords, isLoading: recordsLoading } = useGetStudentAttendance(user?.id || 0);
+  // Fetch attendance with pagination - get first page with large page size for stats
+  const { data: attendanceData, isLoading: recordsLoading } = useGetStudentAttendance(
+    user?.id || 0, 
+    1, 
+    100 // Get up to 100 records for stats
+  );
+  
   const { data: monthlySummary } = useGetAttendanceSummary({ month: selectedMonth });
 
+  // Extract the actual array from paginated response
+  const attendanceRecords = attendanceData?.data || [];
+  const pagination = attendanceData?.pagination;
+
   // Calculate statistics
-  const stats = React.useMemo(() => {
-    if (!attendanceRecords) return null;
+  const stats = React.useMemo<StatsData | null>(() => {
+    if (!attendanceRecords || attendanceRecords.length === 0) return null;
     
     const total = attendanceRecords.length;
-    const present = attendanceRecords.filter(r => r.status === 'present').length;
-    const absent = attendanceRecords.filter(r => r.status === 'absent').length;
-    const late = attendanceRecords.filter(r => r.status === 'late').length;
-    const excused = attendanceRecords.filter(r => r.status === 'excused').length;
-    const sick = attendanceRecords.filter(r => r.status === 'sick').length;
+    const present = attendanceRecords.filter((r: any) => r.status === 'present').length;
+    const absent = attendanceRecords.filter((r: any) => r.status === 'absent').length;
+    const late = attendanceRecords.filter((r: any) => r.status === 'late').length;
+    const excused = attendanceRecords.filter((r: any) => r.status === 'excused').length;
+    const sick = attendanceRecords.filter((r: any) => r.status === 'sick').length;
     
     const attendanceRate = total > 0 ? ((present / total) * 100).toFixed(1) : '0';
     
     // Calculate streak
     let streak = 0;
     const sortedRecords = [...attendanceRecords].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
     for (const record of sortedRecords) {
       if (record.status === 'present') streak++;
@@ -83,14 +105,14 @@ const StudentDashboard: React.FC = () => {
     
     // Calculate this month's stats
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const thisMonthRecords = attendanceRecords.filter(r => r.date.startsWith(currentMonth));
-    const thisMonthPresent = thisMonthRecords.filter(r => r.status === 'present').length;
+    const thisMonthRecords = attendanceRecords.filter((r: any) => r.date.startsWith(currentMonth));
+    const thisMonthPresent = thisMonthRecords.filter((r: any) => r.status === 'present').length;
     const thisMonthTotal = thisMonthRecords.length;
     const thisMonthRate = thisMonthTotal > 0 ? ((thisMonthPresent / thisMonthTotal) * 100).toFixed(1) : '0';
     
     // Monthly data for chart
     const monthlyDataMap: Record<string, MonthlyData> = {};
-    attendanceRecords.forEach((record) => {
+    attendanceRecords.forEach((record: any) => {
       const month = record.date.substring(0, 7);
       if (!monthlyDataMap[month]) {
         monthlyDataMap[month] = { month, present: 0, absent: 0, late: 0, total: 0 };
@@ -102,12 +124,8 @@ const StudentDashboard: React.FC = () => {
     });
     
     const chartData = Object.values(monthlyDataMap)
-      .sort((a, b) => a.month.localeCompare(b.month))
+      .sort((a: any, b: any) => a.month.localeCompare(b.month))
       .slice(-6);
-    
-    // Weekly data for current week
-    const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-    const weeklyData = weekDays.map(day => ({ day, present: 0, absent: 0, late: 0 }));
     
     return {
       total,
@@ -122,7 +140,6 @@ const StudentDashboard: React.FC = () => {
       thisMonthPresent,
       thisMonthTotal,
       chartData,
-      weeklyData,
     };
   }, [attendanceRecords]);
 
@@ -152,7 +169,7 @@ const StudentDashboard: React.FC = () => {
   const motivationalMessage = getMotivationalMessage();
   const MotivationalIcon = motivationalMessage.icon;
 
-  const recentRecords = attendanceRecords?.slice(0, 5) || [];
+  const recentRecords = attendanceRecords.slice(0, 5);
 
   if (recordsLoading) {
     return (
@@ -182,23 +199,25 @@ const StudentDashboard: React.FC = () => {
       </div>
 
       {/* Motivational Banner */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`bg-gradient-to-r ${parseFloat(stats?.attendanceRate || '0') >= 90 ? 'from-success-50 to-success-100 dark:from-success-950/30 dark:to-success-900/30' : parseFloat(stats?.attendanceRate || '0') >= 75 ? 'from-primary-50 to-primary-100 dark:from-primary-950/30 dark:to-primary-900/30' : 'from-warning-50 to-warning-100 dark:from-warning-950/30 dark:to-warning-900/30'} rounded-xl p-4 border border-border`}
-      >
-        <div className="flex items-center gap-3">
-          <MotivationalIcon className={`h-8 w-8 ${motivationalMessage.color}`} />
-          <div>
-            <p className={`font-semibold ${motivationalMessage.color}`}>
-              {motivationalMessage.message}
-            </p>
-            <p className="text-sm text-muted mt-0.5">
-              Your overall attendance is {stats?.attendanceRate || 0}%
-            </p>
+      {stats && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`bg-gradient-to-r ${parseFloat(stats.attendanceRate) >= 90 ? 'from-success-50 to-success-100 dark:from-success-950/30 dark:to-success-900/30' : parseFloat(stats.attendanceRate) >= 75 ? 'from-primary-50 to-primary-100 dark:from-primary-950/30 dark:to-primary-900/30' : 'from-warning-50 to-warning-100 dark:from-warning-950/30 dark:to-warning-900/30'} rounded-xl p-4 border border-border`}
+        >
+          <div className="flex items-center gap-3">
+            <MotivationalIcon className={`h-8 w-8 ${motivationalMessage.color}`} />
+            <div>
+              <p className={`font-semibold ${motivationalMessage.color}`}>
+                {motivationalMessage.message}
+              </p>
+              <p className="text-sm text-muted mt-0.5">
+                Your overall attendance is {stats.attendanceRate}%
+              </p>
+            </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -252,7 +271,7 @@ const StudentDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted text-sm">Total Days</p>
-              <p className="text-2xl font-bold text-foreground">{stats?.total || 0}</p>
+              <p className="text-2xl font-bold text-foreground">{pagination?.total_items || stats?.total || 0}</p>
             </div>
             <div className="bg-blue-100 dark:bg-blue-950/30 p-3 rounded-full">
               <Calendar className="h-5 w-5 text-blue-600" />
@@ -283,126 +302,128 @@ const StudentDashboard: React.FC = () => {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Attendance Trend Chart */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="card p-6"
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <TrendingUp size={20} />
-            Your Attendance Trend
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={stats?.chartData || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="month" stroke="var(--muted)" />
-              <YAxis stroke="var(--muted)" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "var(--surface)",
-                  borderColor: "var(--border)",
-                  color: "var(--foreground)",
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="present"
-                stackId="1"
-                stroke="#10b981"
-                fill="#10b981"
-                fillOpacity={0.3}
-                name="Present"
-              />
-              <Area
-                type="monotone"
-                dataKey="absent"
-                stackId="1"
-                stroke="#ef4444"
-                fill="#ef4444"
-                fillOpacity={0.3}
-                name="Absent"
-              />
-              <Area
-                type="monotone"
-                dataKey="late"
-                stackId="1"
-                stroke="#f59e0b"
-                fill="#f59e0b"
-                fillOpacity={0.3}
-                name="Late"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-          <div className="flex justify-center gap-4 mt-4 text-xs">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-success-500 rounded"></div>
-              <span className="text-muted">Present</span>
+      {stats && stats.chartData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Attendance Trend Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="card p-6"
+          >
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <TrendingUp size={20} />
+              Your Attendance Trend
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={stats.chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" stroke="var(--muted)" />
+                <YAxis stroke="var(--muted)" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--surface)",
+                    borderColor: "var(--border)",
+                    color: "var(--foreground)",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="present"
+                  stackId="1"
+                  stroke="#10b981"
+                  fill="#10b981"
+                  fillOpacity={0.3}
+                  name="Present"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="absent"
+                  stackId="1"
+                  stroke="#ef4444"
+                  fill="#ef4444"
+                  fillOpacity={0.3}
+                  name="Absent"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="late"
+                  stackId="1"
+                  stroke="#f59e0b"
+                  fill="#f59e0b"
+                  fillOpacity={0.3}
+                  name="Late"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+            <div className="flex justify-center gap-4 mt-4 text-xs">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-success-500 rounded"></div>
+                <span className="text-muted">Present</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-error-500 rounded"></div>
+                <span className="text-muted">Absent</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-warning-500 rounded"></div>
+                <span className="text-muted">Late</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-error-500 rounded"></div>
-              <span className="text-muted">Absent</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-warning-500 rounded"></div>
-              <span className="text-muted">Late</span>
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* Distribution Pie Chart */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="card p-6"
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Activity size={20} />
-            Attendance Distribution
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={pieChartData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) =>
-                  `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`
-                }
-                outerRadius={80}
-                dataKey="value"
-              >
-                {pieChartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-muted">Present:</span>
-              <span className="font-semibold text-success-600">{stats?.present || 0} days</span>
+          {/* Distribution Pie Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="card p-6"
+          >
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Activity size={20} />
+              Attendance Distribution
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieChartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) =>
+                    `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`
+                  }
+                  outerRadius={80}
+                  dataKey="value"
+                >
+                  {pieChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted">Present:</span>
+                <span className="font-semibold text-success-600">{stats?.present || 0} days</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted">Absent:</span>
+                <span className="font-semibold text-error-600">{stats?.absent || 0} days</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted">Late:</span>
+                <span className="font-semibold text-warning-600">{stats?.late || 0} days</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted">Excused:</span>
+                <span className="font-semibold text-primary-600">{stats?.excused || 0} days</span>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted">Absent:</span>
-              <span className="font-semibold text-error-600">{stats?.absent || 0} days</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted">Late:</span>
-              <span className="font-semibold text-warning-600">{stats?.late || 0} days</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted">Excused:</span>
-              <span className="font-semibold text-primary-600">{stats?.excused || 0} days</span>
-            </div>
-          </div>
-        </motion.div>
-      </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Recent Activity & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -427,7 +448,7 @@ const StudentDashboard: React.FC = () => {
             </Link>
           </div>
           <div className="space-y-3">
-            {recentRecords.map((record) => {
+            {recentRecords.map((record: any) => {
               const badge = getStatusBadge(record.status);
               return (
                 <div
@@ -550,7 +571,7 @@ const StudentDashboard: React.FC = () => {
       )}
 
       {/* Progress to Next Milestone */}
-      {stats && (
+      {stats && stats.total > 0 && (
         <div className="card p-6">
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <Target size={20} />
