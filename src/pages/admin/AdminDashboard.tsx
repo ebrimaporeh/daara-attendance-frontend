@@ -29,9 +29,10 @@ const AdminDashboard: React.FC = () => {
   const { useGetStudents } = useUsers();
   const { useGetTodayAttendance } = useAttendance();
   
-  const { data: students, isLoading: studentsLoading } = useGetStudents();
+  const { data: studentsResponse, isLoading: studentsLoading } = useGetStudents();
   const { data: todayAttendanceRaw, isLoading: attendanceLoading } = useGetTodayAttendance();
   
+  const students = studentsResponse?.data || [];
   // Type assertion for todayAttendance
   const todayAttendance = todayAttendanceRaw as TodayAttendanceResponse | undefined;
   

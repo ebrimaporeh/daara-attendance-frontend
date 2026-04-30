@@ -45,6 +45,47 @@ import {
 
 type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 
+interface User {
+  id: number;
+  first_name: string;
+  last_name: string;
+  fathers_first_name: string;
+  email?: string;
+  phone: string;
+  user_type: 'student' | 'admin';
+  is_active: boolean;
+  date_joined: string;
+  last_login?: string;
+}
+
+interface PaginatedResponse<T> {
+  status?: string;
+  message?: string;
+  data?: T[];
+  results?: T[];
+  pagination?: {
+    current_page: number;
+    total_pages: number;
+    total_items: number;
+    has_next: boolean;
+    has_previous: boolean;
+    page_size: number;
+  };
+}
+
+interface AttendanceSummary {
+  date?: string;
+  month?: string;
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+  sick: number;
+  total: number;
+  attendance_rate: number;
+  total_students?: number;
+}
+
 const AdminProfile: React.FC = () => {
   const { user, updateProfile, changePassword, logout } = useAuth();
   const { useGetAllUsers } = useUsers();
@@ -64,10 +105,26 @@ const AdminProfile: React.FC = () => {
     phone: user?.phone || '',
   });
 
-  const { data: allUsers } = useGetAllUsers();
-  const { data: monthlySummary } = useGetAttendanceSummary({ 
+  const { data: allUsersData } = useGetAllUsers();
+  const { data: monthlySummaryData } = useGetAttendanceSummary({ 
     month: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}` 
   });
+
+  // Extract users array from paginated response
+  const allUsers = React.useMemo((): User[] => {
+    if (!allUsersData) return [];
+    if (Array.isArray(allUsersData)) return allUsersData;
+    const paginatedData = allUsersData as PaginatedResponse<User>;
+    if (paginatedData.data && Array.isArray(paginatedData.data)) return paginatedData.data;
+    if (paginatedData.results && Array.isArray(paginatedData.results)) return paginatedData.results;
+    return [];
+  }, [allUsersData]);
+
+  // Extract monthly summary
+  const monthlySummary = React.useMemo((): AttendanceSummary | null => {
+    if (!monthlySummaryData) return null;
+    return monthlySummaryData as AttendanceSummary;
+  }, [monthlySummaryData]);
 
   const {
     register,
@@ -80,9 +137,9 @@ const AdminProfile: React.FC = () => {
 
   // Calculate admin stats
   const stats = React.useMemo(() => {
-    const totalStudents = allUsers?.filter(u => u.user_type === 'student').length || 0;
-    const totalAdmins = allUsers?.filter(u => u.user_type === 'admin').length || 0;
-    const activeToday = allUsers?.filter(u => u.is_active !== false).length || 0;
+    const totalStudents = allUsers?.filter((u: User) => u.user_type === 'student').length || 0;
+    const totalAdmins = allUsers?.filter((u: User) => u.user_type === 'admin').length || 0;
+    const activeToday = allUsers?.filter((u: User) => u.is_active !== false).length || 0;
     
     return { totalStudents, totalAdmins, activeToday, totalUsers: allUsers?.length || 0 };
   }, [allUsers]);
@@ -108,7 +165,6 @@ const AdminProfile: React.FC = () => {
     }
   };
 
-  // FIXED: changePassword expects an object with oldPassword and newPassword
   const handlePasswordChange = async (data: ChangePasswordFormData) => {
     try {
       await changePassword({
@@ -172,16 +228,16 @@ const AdminProfile: React.FC = () => {
       <div className="border-b border-border">
         <div className="flex gap-1 overflow-x-auto">
           {[
-            { id: 'profile', label: 'Profile', icon: User },
-            { id: 'security', label: 'Security', icon: Shield },
-            { id: 'activity', label: 'Activity', icon: Activity },
+            { id: 'profile' as const, label: 'Profile', icon: User },
+            { id: 'security' as const, label: 'Security', icon: Shield },
+            { id: 'activity' as const, label: 'Activity', icon: Activity },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 font-medium transition-all relative ${
                   isActive ? 'text-primary-600' : 'text-muted hover:text-foreground'
                 }`}

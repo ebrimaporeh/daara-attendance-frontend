@@ -32,6 +32,29 @@ import { z } from 'zod';
 
 type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 
+interface AttendanceRecord {
+  id: number;
+  date: string;
+  status: 'present' | 'absent' | 'late' | 'excused' | 'sick';
+  notes?: string;
+  marked_by_name?: string;
+}
+
+interface PaginatedResponse<T> {
+  status?: string;
+  message?: string;
+  data?: T[];
+  results?: T[];
+  pagination?: {
+    current_page: number;
+    total_pages: number;
+    total_items: number;
+    has_next: boolean;
+    has_previous: boolean;
+    page_size: number;
+  };
+}
+
 const StudentProfile: React.FC = () => {
   const { user, updateProfile, changePassword, logout } = useAuth();
   const { useGetUser } = useUsers();
@@ -54,19 +77,25 @@ const StudentProfile: React.FC = () => {
   const { data: attendanceData, isLoading: attendanceLoading } = useGetStudentAttendance(user?.id || 0);
 
   // Extract attendance records from paginated response
-  const attendanceRecords = React.useMemo(() => {
-    // Check if attendanceData has the paginated structure
-    if (attendanceData && Array.isArray(attendanceData)) {
+  const attendanceRecords = React.useMemo((): AttendanceRecord[] => {
+    if (!attendanceData) return [];
+    
+    // Check if attendanceData is a direct array
+    if (Array.isArray(attendanceData)) {
       return attendanceData;
     }
+    
     // Handle paginated response with 'data' property
-    if (attendanceData && attendanceData.data && Array.isArray(attendanceData.data)) {
-      return attendanceData.data;
+    const paginatedData = attendanceData as PaginatedResponse<AttendanceRecord>;
+    if (paginatedData.data && Array.isArray(paginatedData.data)) {
+      return paginatedData.data;
     }
+    
     // Handle response with 'results' property (DRF standard)
-    if (attendanceData && attendanceData.results && Array.isArray(attendanceData.results)) {
-      return attendanceData.results;
+    if (paginatedData.results && Array.isArray(paginatedData.results)) {
+      return paginatedData.results;
     }
+    
     return [];
   }, [attendanceData]);
 
@@ -77,7 +106,7 @@ const StudentProfile: React.FC = () => {
     }
     
     const total = attendanceRecords.length;
-    const present = attendanceRecords.filter(r => r.status === 'present').length;
+    const present = attendanceRecords.filter((r: AttendanceRecord) => r.status === 'present').length;
     const attendanceRate = total > 0 ? ((present / total) * 100).toFixed(1) : '0';
     
     // Calculate streak

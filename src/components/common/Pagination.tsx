@@ -30,11 +30,11 @@ export const Pagination: React.FC<PaginationProps> = ({
   className = '',
   disabled = false,
 }) => {
-  const getPageNumbers = () => {
+  const getPageNumbers = (): (number | string)[] => {
     const delta = 2;
-    const range = [];
-    const rangeWithDots = [];
-    let l;
+    const range: number[] = [];
+    const rangeWithDots: (number | string)[] = [];
+    let lastNumber: number | undefined;
 
     for (let i = 1; i <= totalPages; i++) {
       if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
@@ -43,15 +43,15 @@ export const Pagination: React.FC<PaginationProps> = ({
     }
 
     range.forEach((i) => {
-      if (l) {
-        if (i - l === 2) {
-          rangeWithDots.push(l + 1);
-        } else if (i - l !== 1) {
+      if (lastNumber !== undefined) {
+        if (i - lastNumber === 2) {
+          rangeWithDots.push(lastNumber + 1);
+        } else if (i - lastNumber !== 1) {
           rangeWithDots.push('...');
         }
       }
       rangeWithDots.push(i);
-      l = i;
+      lastNumber = i;
     });
 
     return rangeWithDots;
