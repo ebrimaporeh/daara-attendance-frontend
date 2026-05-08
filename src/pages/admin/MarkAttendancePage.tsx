@@ -83,7 +83,7 @@ const MarkAttendance: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(100);
 
   // Debounce search input - only search after 3 characters
   useEffect(() => {
@@ -129,7 +129,7 @@ const MarkAttendance: React.FC = () => {
           studentId: student.id,
           studentName: `${student.first_name} ${student.last_name}`,
           studentPhone: student.phone,
-          status: 'present',
+          status: 'absent',
           notes: '',
           isChanged: false
         }))
@@ -507,7 +507,7 @@ const MarkAttendance: React.FC = () => {
             onPageChange={handlePageChange}
             onPageSizeChange={handlePageSizeChange}
             showPageSizeSelector={true}
-            pageSizeOptions={[10, 20, 30, 50]}
+            pageSizeOptions={[10, 20, 50, 100]}
           />
         </div>
       )}

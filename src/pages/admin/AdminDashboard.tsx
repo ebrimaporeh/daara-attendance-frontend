@@ -39,7 +39,7 @@ const AdminDashboard: React.FC = () => {
   const stats = [
     {
       label: 'Total Students',
-      value: students?.length || 0,
+      value: studentsResponse?.pagination.total_items || 0,
       icon: Users,
       color: 'text-blue-600',
       bg: 'bg-blue-100 dark:bg-blue-950/30',
