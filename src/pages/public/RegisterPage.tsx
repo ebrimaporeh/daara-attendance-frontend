@@ -31,7 +31,7 @@ const RegisterPage: React.FC = () => {
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      user_type: 'admin',
+      user_type: 'student',
     },
   });
 
