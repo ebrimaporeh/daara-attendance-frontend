@@ -1,48 +1,95 @@
 // src/api/attendance.ts
-import { apiClient } from './client';
-import { AttendanceRecord, AttendanceSummary, PaginatedResponse, AttendanceFilters } from '@/types';
+import { apiClient } from "./client";
+import {
+  AttendanceRecord,
+  AttendanceSummary,
+  PaginatedResponse,
+  AttendanceFilters,
+} from "@/types";
+import {
+  TodayAttendanceParams,
+  CloseSessionParams,
+} from "@/hooks/useAttendance";
 
 export const attendanceApi = {
   // Get all attendance records with pagination and filters
-  getAttendance: (filters?: AttendanceFilters): Promise<PaginatedResponse<AttendanceRecord>> => {
+  getAttendance: (
+    filters?: AttendanceFilters,
+  ): Promise<PaginatedResponse<AttendanceRecord>> => {
     const params = new URLSearchParams();
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
+        if (value !== undefined && value !== null && value !== "") {
           params.append(key, value.toString());
         }
       });
     }
     const queryString = params.toString();
-    return apiClient.get(`/attendance/${queryString ? `?${queryString}` : ''}`);
+    return apiClient.get(`/attendance/${queryString ? `?${queryString}` : ""}`);
   },
 
   // Get today's attendance with pagination
-  getTodayAttendance: (page?: number, pageSize?: number): Promise<any> => {
-    const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (pageSize) params.append('page_size', pageSize.toString());
-    const queryString = params.toString();
-    return apiClient.get(`/attendance/today/${queryString ? `?${queryString}` : ''}`);
+  getTodayAttendance: async (params?: TodayAttendanceParams) => {
+    const searchParams = new URLSearchParams();
+
+    if (params?.page) searchParams.set("page", String(params.page));
+    if (params?.page_size)
+      searchParams.set("page_size", String(params.page_size));
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.status) searchParams.set("status", params.status);
+
+    const query = searchParams.toString();
+    const url = `/attendance/today/${query ? `?${query}` : ""}`;
+
+    const response = await apiClient.get(url);
+    return response;
+  },
+
+  // Add this new function:
+  closeSession: async (params?: CloseSessionParams) => {
+    const response = await apiClient.post(
+      "/attendance/close-session/",
+      params ?? {},
+    );
+    return response;
   },
 
   // Get student attendance with pagination
-  getStudentAttendance: (studentId: number, page?: number, pageSize?: number): Promise<PaginatedResponse<AttendanceRecord>> => {
+  getStudentAttendance: (
+    studentId: number,
+    page?: number,
+    pageSize?: number,
+  ): Promise<PaginatedResponse<AttendanceRecord>> => {
     const params = new URLSearchParams();
-    if (page) params.append('page', page.toString());
-    if (pageSize) params.append('page_size', pageSize.toString());
+    if (page) params.append("page", page.toString());
+    if (pageSize) params.append("page_size", pageSize.toString());
     const queryString = params.toString();
-    return apiClient.get(`/attendance/student/${studentId}/${queryString ? `?${queryString}` : ''}`);
+    return apiClient.get(
+      `/attendance/student/${studentId}/${queryString ? `?${queryString}` : ""}`,
+    );
+  },
+  upsertAttendance: (data: {
+    student: number;
+    status: string;
+    date: string;
+    notes?: string;
+  }): Promise<AttendanceRecord> => {
+    return apiClient.post("/attendance/upsert/", data);
   },
 
   // Create single attendance record
-  createAttendance: (data: { student: number; status: string; notes?: string; date?: string }) => {
-    return apiClient.post('/attendance/', data);
+  createAttendance: (data: {
+    student: number;
+    status: string;
+    notes?: string;
+    date?: string;
+  }) => {
+    return apiClient.post("/attendance/", data);
   },
 
   // Bulk create attendance records
   bulkCreateAttendance: (records: any[], date?: string) => {
-    return apiClient.post('/attendance/bulk-create/', { records, date });
+    return apiClient.post("/attendance/bulk-create/", { records, date });
   },
 
   // Update attendance record
@@ -56,7 +103,10 @@ export const attendanceApi = {
   },
 
   // Get attendance summary (date or month)
-  getAttendanceSummary: (params: { date?: string; month?: string }): Promise<AttendanceSummary> => {
+  getAttendanceSummary: (params: {
+    date?: string;
+    month?: string;
+  }): Promise<AttendanceSummary> => {
     const queryString = new URLSearchParams(params as any).toString();
     return apiClient.get(`/attendance/summary/?${queryString}`);
   },
@@ -64,20 +114,28 @@ export const attendanceApi = {
   // Get student summary for a month
   getStudentSummary: (month: string, studentId?: number): Promise<any[]> => {
     const params = new URLSearchParams({ month });
-    if (studentId) params.append('student_id', studentId.toString());
+    if (studentId) params.append("student_id", studentId.toString());
     return apiClient.get(`/attendance/student-summary/?${params.toString()}`);
   },
 
   // Get attendance by date range with pagination
-  getDateRangeAttendance: (startDate: string, endDate: string, page?: number, pageSize?: number): Promise<PaginatedResponse<AttendanceRecord>> => {
-    const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
-    if (page) params.append('page', page.toString());
-    if (pageSize) params.append('page_size', pageSize.toString());
+  getDateRangeAttendance: (
+    startDate: string,
+    endDate: string,
+    page?: number,
+    pageSize?: number,
+  ): Promise<PaginatedResponse<AttendanceRecord>> => {
+    const params = new URLSearchParams({
+      start_date: startDate,
+      end_date: endDate,
+    });
+    if (page) params.append("page", page.toString());
+    if (pageSize) params.append("page_size", pageSize.toString());
     return apiClient.get(`/attendance/date-range/?${params.toString()}`);
   },
 
   // Get attendance statistics
   getAttendanceStatistics: (): Promise<any> => {
-    return apiClient.get('/attendance/statistics/');
+    return apiClient.get("/attendance/statistics/");
   },
 };
