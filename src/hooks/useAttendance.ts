@@ -5,7 +5,7 @@ import { AttendanceRecord, AttendanceSummary, PaginatedResponse, AttendanceFilte
 import toast from 'react-hot-toast';
 
 // ---------------------------------------------------------------------------
-// Param types
+// Param types for today's attendance
 // ---------------------------------------------------------------------------
 export interface TodayAttendanceParams {
   page?: number;
@@ -14,9 +14,56 @@ export interface TodayAttendanceParams {
   status?: string;
 }
 
+// Response type for today's attendance (matches what your backend returns)
+export interface TodayAttendanceResponse {
+  date: string;
+  summary: {
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    sick: number;
+    unmarked: number;
+    marked: number;
+    total_students: number;
+    completion_rate: number;
+  };
+  pagination?: {
+    current_page: number;
+    total_pages: number;
+    total_items: number;
+    page_size: number;
+    has_next: boolean;
+    has_previous: boolean;
+  };
+  students: Array<{
+    student_id: number;
+    student_name: string;
+    student_phone: string;
+    record_id: number | null;
+    status: 'present' | 'absent' | 'late' | 'excused' | 'sick' | 'unmarked';
+    notes: string;
+    marked_by_name: string | null;
+    marked_at: string | null;
+    has_record: boolean;
+  }>;
+}
+
 export interface CloseSessionParams {
   date?: string;
   notes?: string;
+}
+
+export interface CloseSessionResponse {
+  message: string;
+  marked_count: number;
+  total_students: number;
+  already_marked: number;
+  records: Array<{
+    student_id: number;
+    student_name: string;
+    record_id: number;
+  }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -37,12 +84,12 @@ export const useAttendance = () => {
     });
   };
 
-  // Accepts a params object now — page, page_size, search, status
+  // Get today's attendance with unmarked students
   const useGetTodayAttendance = (params?: TodayAttendanceParams) => {
-    return useQuery({
+    return useQuery<TodayAttendanceResponse>({
       queryKey: ['attendance', 'today', params],
       queryFn: () => attendanceApi.getTodayAttendance(params),
-      staleTime: 30 * 1000, // 30 s — attendance changes frequently
+      staleTime: 30 * 1000,
     });
   };
 
@@ -113,6 +160,17 @@ export const useAttendance = () => {
     },
   });
 
+  const bulkMarkAttendanceMutation = useMutation({
+    mutationFn: attendanceApi.bulkMarkAttendance,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      toast.success('Bulk marking completed');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to bulk mark');
+    },
+  });
+
   const createAttendanceMutation = useMutation({
     mutationFn: attendanceApi.createAttendance,
     onSuccess: () => {
@@ -175,11 +233,13 @@ export const useAttendance = () => {
     deleteAttendance: deleteAttendanceMutation.mutateAsync,
     upsertAttendance: upsertAttendanceMutation.mutateAsync,
     closeSession: closeSessionMutation.mutateAsync,
+    bulkMarkAttendance: bulkMarkAttendanceMutation.mutateAsync,
     // Loading states
     isCreating: createAttendanceMutation.isPending,
     isUpdating: updateAttendanceMutation.isPending,
     isDeleting: deleteAttendanceMutation.isPending,
     isUpserting: upsertAttendanceMutation.isPending,
     isClosingSession: closeSessionMutation.isPending,
+    isBulkMarking: bulkMarkAttendanceMutation.isPending,
   };
 };

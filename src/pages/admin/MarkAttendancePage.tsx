@@ -1,20 +1,37 @@
 // src/pages/admin/MarkAttendance.tsx
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, CheckCircle, XCircle, Clock, Heart, AlertCircle,
-  Users, Calendar, ChevronDown, RefreshCw, X, Loader2,
-  Lock, Filter, ChevronLeft, ChevronRight, BookOpen, Minus
-} from 'lucide-react';
-import { useUsers } from '@/hooks/useUsers';
-import { useAttendance } from '@/hooks/useAttendance';
-import toast from 'react-hot-toast';
-import { useQueryClient } from '@tanstack/react-query';
+  Search,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Heart,
+  AlertCircle,
+  Users,
+  RefreshCw,
+  X,
+  Loader2,
+  Lock,
+  ChevronLeft,
+  ChevronRight,
+  BookOpen,
+  Minus,
+} from "lucide-react";
+import { useAttendance } from "@/hooks/useAttendance";
+import toast from "react-hot-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused' | 'sick' | 'unmarked';
+type AttendanceStatus =
+  | "present"
+  | "absent"
+  | "late"
+  | "excused"
+  | "sick"
+  | "unmarked";
 
 interface StudentRow {
   student_id: number;
@@ -27,7 +44,19 @@ interface StudentRow {
   marked_at: string | null;
 }
 
-type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
+interface AttendanceSummaryData {
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+  sick: number;
+  unmarked: number;
+  marked: number;
+  total_students: number;
+  completion_rate: number;
+}
+
+type SyncStatus = "idle" | "saving" | "saved" | "error";
 
 interface SyncState {
   [studentId: number]: { status: SyncStatus; errorMessage?: string };
@@ -36,73 +65,82 @@ interface SyncState {
 // ---------------------------------------------------------------------------
 // Status config — covers all 6 states
 // ---------------------------------------------------------------------------
-const STATUS_CONFIG: Record<AttendanceStatus, {
-  label: string;
-  shortLabel: string;
-  textColor: string;
-  bgColor: string;
-  borderColor: string;
-  dotColor: string;
-  icon: React.ElementType;
-}> = {
+const STATUS_CONFIG: Record<
+  AttendanceStatus,
+  {
+    label: string;
+    shortLabel: string;
+    textColor: string;
+    bgColor: string;
+    borderColor: string;
+    dotColor: string;
+    icon: React.ElementType;
+  }
+> = {
   unmarked: {
-    label: 'Unmarked',
-    shortLabel: '—',
-    textColor: 'text-slate-400',
-    bgColor: 'bg-slate-100 dark:bg-slate-800',
-    borderColor: 'border-slate-200 dark:border-slate-700',
-    dotColor: 'bg-slate-300',
+    label: "Unmarked",
+    shortLabel: "—",
+    textColor: "text-slate-400",
+    bgColor: "bg-slate-100 dark:bg-slate-800",
+    borderColor: "border-slate-200 dark:border-slate-700",
+    dotColor: "bg-slate-300",
     icon: Minus,
   },
   present: {
-    label: 'Present',
-    shortLabel: 'P',
-    textColor: 'text-emerald-700 dark:text-emerald-400',
-    bgColor: 'bg-emerald-50 dark:bg-emerald-950/40',
-    borderColor: 'border-emerald-200 dark:border-emerald-800',
-    dotColor: 'bg-emerald-500',
+    label: "Present",
+    shortLabel: "P",
+    textColor: "text-emerald-700 dark:text-emerald-400",
+    bgColor: "bg-emerald-50 dark:bg-emerald-950/40",
+    borderColor: "border-emerald-200 dark:border-emerald-800",
+    dotColor: "bg-emerald-500",
     icon: CheckCircle,
   },
   absent: {
-    label: 'Absent',
-    shortLabel: 'A',
-    textColor: 'text-red-700 dark:text-red-400',
-    bgColor: 'bg-red-50 dark:bg-red-950/40',
-    borderColor: 'border-red-200 dark:border-red-800',
-    dotColor: 'bg-red-500',
+    label: "Absent",
+    shortLabel: "A",
+    textColor: "text-red-700 dark:text-red-400",
+    bgColor: "bg-red-50 dark:bg-red-950/40",
+    borderColor: "border-red-200 dark:border-red-800",
+    dotColor: "bg-red-500",
     icon: XCircle,
   },
   late: {
-    label: 'Late',
-    shortLabel: 'L',
-    textColor: 'text-amber-700 dark:text-amber-400',
-    bgColor: 'bg-amber-50 dark:bg-amber-950/40',
-    borderColor: 'border-amber-200 dark:border-amber-800',
-    dotColor: 'bg-amber-500',
+    label: "Late",
+    shortLabel: "L",
+    textColor: "text-amber-700 dark:text-amber-400",
+    bgColor: "bg-amber-50 dark:bg-amber-950/40",
+    borderColor: "border-amber-200 dark:border-amber-800",
+    dotColor: "bg-amber-500",
     icon: Clock,
   },
   excused: {
-    label: 'Excused',
-    shortLabel: 'E',
-    textColor: 'text-blue-700 dark:text-blue-400',
-    bgColor: 'bg-blue-50 dark:bg-blue-950/40',
-    borderColor: 'border-blue-200 dark:border-blue-800',
-    dotColor: 'bg-blue-500',
+    label: "Excused",
+    shortLabel: "E",
+    textColor: "text-blue-700 dark:text-blue-400",
+    bgColor: "bg-blue-50 dark:bg-blue-950/40",
+    borderColor: "border-blue-200 dark:border-blue-800",
+    dotColor: "bg-blue-500",
     icon: AlertCircle,
   },
   sick: {
-    label: 'Sick',
-    shortLabel: 'S',
-    textColor: 'text-purple-700 dark:text-purple-400',
-    bgColor: 'bg-purple-50 dark:bg-purple-950/40',
-    borderColor: 'border-purple-200 dark:border-purple-800',
-    dotColor: 'bg-purple-500',
+    label: "Sick",
+    shortLabel: "S",
+    textColor: "text-purple-700 dark:text-purple-400",
+    bgColor: "bg-purple-50 dark:bg-purple-950/40",
+    borderColor: "border-purple-200 dark:border-purple-800",
+    dotColor: "bg-purple-500",
     icon: Heart,
   },
 };
 
 // Statuses teachers can set (not unmarked — that's the default state)
-const MARKABLE_STATUSES: AttendanceStatus[] = ['present', 'late', 'excused', 'sick', 'absent'];
+const MARKABLE_STATUSES: AttendanceStatus[] = [
+  "present",
+  "late",
+  "excused",
+  "sick",
+  "absent",
+];
 
 // ---------------------------------------------------------------------------
 // Close Session Modal
@@ -114,7 +152,10 @@ const CloseSessionModal: React.FC<{
   isClosing: boolean;
 }> = ({ summary, onConfirm, onCancel, isClosing }) => (
   <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
+    <div
+      className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      onClick={onCancel}
+    />
     <motion.div
       initial={{ opacity: 0, y: 60 }}
       animate={{ opacity: 1, y: 0 }}
@@ -128,8 +169,12 @@ const CloseSessionModal: React.FC<{
             <Lock size={20} />
           </div>
           <div>
-            <h2 className="font-bold text-lg leading-tight">Close Attendance Session</h2>
-            <p className="text-white/70 text-sm">All unmarked students will be set to Absent</p>
+            <h2 className="font-bold text-lg leading-tight">
+              Close Attendance Session
+            </h2>
+            <p className="text-white/70 text-sm">
+              All unmarked students will be set to Absent
+            </p>
           </div>
         </div>
       </div>
@@ -140,12 +185,28 @@ const CloseSessionModal: React.FC<{
           Current session status:
         </p>
         <div className="grid grid-cols-3 gap-2 mb-2">
-          {(['present', 'late', 'excused', 'sick', 'absent', 'unmarked'] as AttendanceStatus[]).map(s => {
+          {(
+            [
+              "present",
+              "late",
+              "excused",
+              "sick",
+              "absent",
+              "unmarked",
+            ] as AttendanceStatus[]
+          ).map((s) => {
             const cfg = STATUS_CONFIG[s];
             return (
-              <div key={s} className={`rounded-xl p-3 text-center ${cfg.bgColor} border ${cfg.borderColor}`}>
-                <div className={`text-xl font-bold ${cfg.textColor}`}>{summary[s] ?? 0}</div>
-                <div className={`text-xs mt-0.5 ${cfg.textColor} opacity-80`}>{cfg.label}</div>
+              <div
+                key={s}
+                className={`rounded-xl p-3 text-center ${cfg.bgColor} border ${cfg.borderColor}`}
+              >
+                <div className={`text-xl font-bold ${cfg.textColor}`}>
+                  {summary[s] ?? 0}
+                </div>
+                <div className={`text-xs mt-0.5 ${cfg.textColor} opacity-80`}>
+                  {cfg.label}
+                </div>
               </div>
             );
           })}
@@ -153,7 +214,9 @@ const CloseSessionModal: React.FC<{
 
         {(summary.unmarked ?? 0) > 0 && (
           <div className="mt-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-sm">
-            <strong>{summary.unmarked}</strong> unmarked student{summary.unmarked !== 1 ? 's' : ''} will be marked <strong>Absent</strong>.
+            <strong>{summary.unmarked}</strong> unmarked student
+            {summary.unmarked !== 1 ? "s" : ""} will be marked{" "}
+            <strong>Absent</strong>.
           </div>
         )}
         {(summary.unmarked ?? 0) === 0 && (
@@ -176,8 +239,12 @@ const CloseSessionModal: React.FC<{
           disabled={isClosing}
           className="flex-1 py-3 rounded-xl bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
         >
-          {isClosing ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
-          {isClosing ? 'Closing…' : 'Confirm & Close'}
+          {isClosing ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Lock size={16} />
+          )}
+          {isClosing ? "Closing…" : "Confirm & Close"}
         </button>
       </div>
     </motion.div>
@@ -193,7 +260,7 @@ const StatusPills: React.FC<{
   disabled: boolean;
 }> = ({ current, onChange, disabled }) => (
   <div className="flex gap-1.5 flex-wrap mt-2.5">
-    {MARKABLE_STATUSES.map(s => {
+    {MARKABLE_STATUSES.map((s) => {
       const cfg = STATUS_CONFIG[s];
       const active = current === s;
       return (
@@ -203,9 +270,10 @@ const StatusPills: React.FC<{
           onClick={() => !disabled && onChange(s)}
           className={`
             px-3 py-1.5 rounded-full text-xs font-semibold border transition-all active:scale-95 select-none
-            ${active
-              ? `${cfg.bgColor} ${cfg.borderColor} ${cfg.textColor} shadow-sm`
-              : 'bg-transparent border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'
+            ${
+              active
+                ? `${cfg.bgColor} ${cfg.borderColor} ${cfg.textColor} shadow-sm`
+                : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500"
             }
             disabled:opacity-40 disabled:cursor-not-allowed
             min-h-[32px] min-w-[44px] flex items-center justify-center
@@ -229,10 +297,10 @@ const StudentCard: React.FC<{
 }> = ({ student, syncState, onStatusChange, index }) => {
   const cfg = STATUS_CONFIG[student.status];
   const Icon = cfg.icon;
-  const isSaving = syncState?.status === 'saving';
-  const isSaved = syncState?.status === 'saved';
-  const isError = syncState?.status === 'error';
-  const isUnmarked = student.status === 'unmarked';
+  const isSaving = syncState?.status === "saving";
+  const isSaved = syncState?.status === "saved";
+  const isError = syncState?.status === "error";
+  const isUnmarked = student.status === "unmarked";
 
   return (
     <motion.div
@@ -241,27 +309,38 @@ const StudentCard: React.FC<{
       transition={{ delay: Math.min(index * 0.015, 0.3), duration: 0.2 }}
       className={`
         rounded-2xl border p-4 transition-all duration-200
-        ${isUnmarked
-          ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-          : `${cfg.bgColor} ${cfg.borderColor}`
+        ${
+          isUnmarked
+            ? "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+            : `${cfg.bgColor} ${cfg.borderColor}`
         }
-        ${isSaving ? 'opacity-60' : ''}
+        ${isSaving ? "opacity-60" : ""}
       `}
     >
       <div className="flex items-start gap-3">
         {/* Avatar / status indicator */}
-        <div className={`
+        <div
+          className={`
           flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
-          ${isUnmarked ? 'bg-slate-100 dark:bg-slate-800' : cfg.bgColor}
-        `}>
-          {isSaving
-            ? <Loader2 size={18} className="animate-spin text-slate-400" />
-            : isSaved
-            ? <CheckCircle size={18} className="text-emerald-500" />
-            : isError
-            ? <XCircle size={18} className="text-red-500" />
-            : <Icon size={18} className={isUnmarked ? 'text-slate-300 dark:text-slate-600' : cfg.textColor} />
-          }
+          ${isUnmarked ? "bg-slate-100 dark:bg-slate-800" : cfg.bgColor}
+        `}
+        >
+          {isSaving ? (
+            <Loader2 size={18} className="animate-spin text-slate-400" />
+          ) : isSaved ? (
+            <CheckCircle size={18} className="text-emerald-500" />
+          ) : isError ? (
+            <XCircle size={18} className="text-red-500" />
+          ) : (
+            <Icon
+              size={18}
+              className={
+                isUnmarked
+                  ? "text-slate-300 dark:text-slate-600"
+                  : cfg.textColor
+              }
+            />
+          )}
         </div>
 
         {/* Info */}
@@ -276,21 +355,32 @@ const StudentCard: React.FC<{
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{student.student_phone}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+            {student.student_phone}
+          </p>
 
           {/* Marked-by info */}
           {student.marked_by_name && !isUnmarked && (
             <p className="text-[11px] text-slate-400 dark:text-slate-600 mt-1">
               by {student.marked_by_name}
               {student.marked_at && (
-                <span> · {new Date(student.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>
+                  {" "}
+                  ·{" "}
+                  {new Date(student.marked_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
               )}
             </p>
           )}
 
           {/* Error */}
           {isError && (
-            <p className="text-[11px] text-red-500 mt-1">{syncState?.errorMessage || 'Failed to save'}</p>
+            <p className="text-[11px] text-red-500 mt-1">
+              {syncState?.errorMessage || "Failed to save"}
+            </p>
           )}
 
           {/* Status pills */}
@@ -310,32 +400,44 @@ const StudentCard: React.FC<{
 // ---------------------------------------------------------------------------
 const MarkAttendance: React.FC = () => {
   const queryClient = useQueryClient();
-  const { upsertAttendance, useGetTodayAttendance, closeSession } = useAttendance();
+  const { upsertAttendance, useGetTodayAttendance, closeSession } =
+    useAttendance();
 
-  const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [searchInput, setSearchInput] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<AttendanceStatus | 'all'>('all');
+  const [selectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<AttendanceStatus | "all">(
+    "all",
+  );
   const [syncStates, setSyncStates] = useState<SyncState>({});
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [isClosingSession, setIsClosingSession] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(50);
-  const [showFilterSheet, setShowFilterSheet] = useState(false);
 
   // Optimistic local overrides — applied on top of server data while saving
-  const [localOverrides, setLocalOverrides] = useState<Record<number, AttendanceStatus>>({});
+  const [localOverrides, setLocalOverrides] = useState<
+    Record<number, AttendanceStatus>
+  >({});
 
   // Debounce search (3 char min)
   useEffect(() => {
-    if (searchInput === '') { setDebouncedSearch(''); return; }
-    if (searchInput.length < 3) { setDebouncedSearch(''); return; }
+    if (searchInput === "") {
+      setDebouncedSearch("");
+      return;
+    }
+    if (searchInput.length < 3) {
+      setDebouncedSearch("");
+      return;
+    }
     const t = setTimeout(() => setDebouncedSearch(searchInput), 400);
     return () => clearTimeout(t);
   }, [searchInput]);
 
   // Reset page on search/filter change
-  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, statusFilter]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter]);
 
   // Fetch today's session
   const {
@@ -346,16 +448,28 @@ const MarkAttendance: React.FC = () => {
     page: currentPage,
     page_size: pageSize,
     search: debouncedSearch || undefined,
-    status: statusFilter !== 'all' ? statusFilter : undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
   });
 
-  const summary = todayData?.summary ?? {};
+  const defaultSummary: AttendanceSummaryData = {
+    present: 0,
+    absent: 0,
+    late: 0,
+    excused: 0,
+    sick: 0,
+    unmarked: 0,
+    marked: 0,
+    total_students: 0,
+    completion_rate: 0,
+  };
+
+  const summary = todayData?.summary ?? defaultSummary;
   const pagination = todayData?.pagination;
   const serverStudents: StudentRow[] = todayData?.students ?? [];
 
   // Apply optimistic overrides on top of server data
   const students = useMemo(() => {
-    return serverStudents.map(s => ({
+    return serverStudents.map((s) => ({
       ...s,
       status: localOverrides[s.student_id] ?? s.status,
     }));
@@ -363,49 +477,70 @@ const MarkAttendance: React.FC = () => {
 
   // Sync indicator helpers
   const setSaving = (id: number) =>
-    setSyncStates(p => ({ ...p, [id]: { status: 'saving' } }));
+    setSyncStates((p) => ({ ...p, [id]: { status: "saving" } }));
   const setSaved = (id: number) =>
-    setSyncStates(p => ({ ...p, [id]: { status: 'saved' } }));
+    setSyncStates((p) => ({ ...p, [id]: { status: "saved" } }));
   const setError = (id: number, msg: string) =>
-    setSyncStates(p => ({ ...p, [id]: { status: 'error', errorMessage: msg } }));
+    setSyncStates((p) => ({
+      ...p,
+      [id]: { status: "error", errorMessage: msg },
+    }));
   const clearSync = (id: number) =>
-    setSyncStates(p => { const n = { ...p }; delete n[id]; return n; });
+    setSyncStates((p) => {
+      const n = { ...p };
+      delete n[id];
+      return n;
+    });
 
   // ---------------------------------------------------------------------------
   // Mark individual student
   // ---------------------------------------------------------------------------
-  const handleStatusChange = useCallback(async (student: StudentRow, newStatus: AttendanceStatus) => {
-    if (newStatus === 'unmarked') return;
+  const handleStatusChange = useCallback(
+    async (student: StudentRow, newStatus: AttendanceStatus) => {
+      if (newStatus === "unmarked") return;
 
-    // Optimistic update immediately
-    setLocalOverrides(p => ({ ...p, [student.student_id]: newStatus }));
-    setSaving(student.student_id);
+      // Optimistic update immediately
+      setLocalOverrides((p) => ({ ...p, [student.student_id]: newStatus }));
+      setSaving(student.student_id);
 
-    try {
-      await upsertAttendance({
-        student: student.student_id,
-        status: newStatus,
-        date: selectedDate,
-        notes: `${STATUS_CONFIG[newStatus].label} - Marked via attendance`,
-      });
+      try {
+        await upsertAttendance({
+          student: student.student_id,
+          status: newStatus,
+          date: selectedDate,
+          notes: `${STATUS_CONFIG[newStatus].label} - Marked via attendance`,
+        });
 
-      setSaved(student.student_id);
-      setTimeout(() => {
-        clearSync(student.student_id);
-        // Remove override — server data is now correct
-        setLocalOverrides(p => { const n = { ...p }; delete n[student.student_id]; return n; });
-        refetchToday();
-      }, 1200);
+        setSaved(student.student_id);
+        setTimeout(() => {
+          clearSync(student.student_id);
+          // Remove override — server data is now correct
+          setLocalOverrides((p) => {
+            const n = { ...p };
+            delete n[student.student_id];
+            return n;
+          });
+          refetchToday();
+        }, 1200);
 
-      queryClient.invalidateQueries({ queryKey: ['attendance'] });
-    } catch (error: any) {
-      // Roll back optimistic update
-      setLocalOverrides(p => { const n = { ...p }; delete n[student.student_id]; return n; });
-      setError(student.student_id, error?.response?.data?.message || 'Failed to save');
-      setTimeout(() => clearSync(student.student_id), 3000);
-      toast.error(`Failed to mark ${student.student_name}`);
-    }
-  }, [selectedDate, upsertAttendance, queryClient, refetchToday]);
+        queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      } catch (error: any) {
+        // Roll back optimistic update
+        setLocalOverrides((p) => {
+          const n = { ...p };
+          delete n[student.student_id];
+          return n;
+        });
+        setError(
+          student.student_id,
+          error?.response?.data?.message || "Failed to save",
+        );
+        setTimeout(() => clearSync(student.student_id), 3000);
+        toast.error(`Failed to mark ${student.student_name}`);
+      }
+    },
+    [selectedDate, upsertAttendance, queryClient, refetchToday],
+  );
 
   // ---------------------------------------------------------------------------
   // Close session
@@ -415,12 +550,12 @@ const MarkAttendance: React.FC = () => {
     try {
       await closeSession({ date: selectedDate });
       setShowCloseModal(false);
-      toast.success('Session closed. Unmarked students set to Absent.');
+      toast.success("Session closed. Unmarked students set to Absent.");
       setLocalOverrides({});
       refetchToday();
-      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || 'Failed to close session');
+      toast.error(err?.response?.data?.error || "Failed to close session");
     } finally {
       setIsClosingSession(false);
     }
@@ -432,14 +567,14 @@ const MarkAttendance: React.FC = () => {
   const markedCount = summary.marked ?? 0;
   const totalCount = summary.total_students ?? 0;
   const unmarkedCount = summary.unmarked ?? 0;
-  const progressPct = totalCount > 0 ? Math.round((markedCount / totalCount) * 100) : 0;
+  const progressPct =
+    totalCount > 0 ? Math.round((markedCount / totalCount) * 100) : 0;
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   return (
     <div className="max-w-2xl mx-auto pb-24">
-
       {/* ── Top header ─────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-4 pt-4 pb-3">
         <div className="flex items-center justify-between gap-3 mb-3">
@@ -448,9 +583,15 @@ const MarkAttendance: React.FC = () => {
               <BookOpen size={18} className="text-white dark:text-slate-900" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Attendance</h1>
+              <h1 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+                Attendance
+              </h1>
               <p className="text-[11px] text-slate-400">
-                {new Date(selectedDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                {new Date(selectedDate).toLocaleDateString("en-GB", {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                })}
               </p>
             </div>
           </div>
@@ -462,7 +603,10 @@ const MarkAttendance: React.FC = () => {
               className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 active:scale-95 transition-transform"
               title="Refresh"
             >
-              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+              <RefreshCw
+                size={16}
+                className={isLoading ? "animate-spin" : ""}
+              />
             </button>
 
             {/* Close Session */}
@@ -479,7 +623,9 @@ const MarkAttendance: React.FC = () => {
         {/* Progress bar */}
         <div className="mb-3">
           <div className="flex justify-between text-[11px] text-slate-400 mb-1.5">
-            <span>{markedCount} of {totalCount} marked</span>
+            <span>
+              {markedCount} of {totalCount} marked
+            </span>
             <span>{progressPct}%</span>
           </div>
           <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -487,23 +633,34 @@ const MarkAttendance: React.FC = () => {
               className="h-full bg-slate-900 dark:bg-white rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${progressPct}%` }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
             />
           </div>
         </div>
 
         {/* Summary chips */}
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
-          {(['present', 'late', 'excused', 'sick', 'absent', 'unmarked'] as AttendanceStatus[]).map(s => {
+          {(
+            [
+              "present",
+              "late",
+              "excused",
+              "sick",
+              "absent",
+              "unmarked",
+            ] as AttendanceStatus[]
+          ).map((s) => {
             const cfg = STATUS_CONFIG[s];
             const count = summary[s] ?? 0;
             return (
               <button
                 key={s}
-                onClick={() => setStatusFilter(prev => prev === s ? 'all' : s)}
+                onClick={() =>
+                  setStatusFilter((prev) => (prev === s ? "all" : s))
+                }
                 className={`
                   flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all
-                  ${statusFilter === s ? `${cfg.bgColor} ${cfg.borderColor} ${cfg.textColor}` : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'}
+                  ${statusFilter === s ? `${cfg.bgColor} ${cfg.borderColor} ${cfg.textColor}` : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500"}
                 `}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${cfg.dotColor}`} />
@@ -517,17 +674,20 @@ const MarkAttendance: React.FC = () => {
       {/* ── Search bar ─────────────────────────────────────────── */}
       <div className="px-4 pt-3 pb-2">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+            size={16}
+          />
           <input
             type="text"
             placeholder="Search name or phone (3+ chars)…"
             value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="w-full pl-9 pr-8 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
           />
           {searchInput && (
             <button
-              onClick={() => setSearchInput('')}
+              onClick={() => setSearchInput("")}
               className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400"
             >
               <X size={14} />
@@ -535,7 +695,10 @@ const MarkAttendance: React.FC = () => {
           )}
         </div>
         {searchInput.length > 0 && searchInput.length < 3 && (
-          <p className="text-[11px] text-slate-400 mt-1.5 ml-1">Type {3 - searchInput.length} more character{3 - searchInput.length !== 1 ? 's' : ''} to search</p>
+          <p className="text-[11px] text-slate-400 mt-1.5 ml-1">
+            Type {3 - searchInput.length} more character
+            {3 - searchInput.length !== 1 ? "s" : ""} to search
+          </p>
         )}
       </div>
 
@@ -548,14 +711,19 @@ const MarkAttendance: React.FC = () => {
           </div>
         ) : students.length === 0 ? (
           <div className="text-center py-20">
-            <Users size={36} className="text-slate-200 dark:text-slate-700 mx-auto mb-3" />
-            <p className="text-sm font-medium text-slate-500">No students found</p>
+            <Users
+              size={36}
+              className="text-slate-200 dark:text-slate-700 mx-auto mb-3"
+            />
+            <p className="text-sm font-medium text-slate-500">
+              No students found
+            </p>
             <p className="text-xs text-slate-400 mt-1">
               {searchInput.length >= 3
                 ? `No results for "${searchInput}"`
-                : statusFilter !== 'all'
-                ? `No students with status "${STATUS_CONFIG[statusFilter as AttendanceStatus].label}"`
-                : 'No students available'}
+                : statusFilter !== "all"
+                  ? `No students with status "${STATUS_CONFIG[statusFilter as AttendanceStatus].label}"`
+                  : "No students available"}
             </p>
           </div>
         ) : (
@@ -579,7 +747,10 @@ const MarkAttendance: React.FC = () => {
           <div className="flex items-center justify-between gap-3">
             <button
               disabled={!pagination.has_previous}
-              onClick={() => { setCurrentPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              onClick={() => {
+                setCurrentPage((p) => p - 1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-transform"
             >
               <ChevronLeft size={16} /> Prev
@@ -587,12 +758,17 @@ const MarkAttendance: React.FC = () => {
 
             <span className="text-xs text-slate-400">
               Page {pagination.current_page} of {pagination.total_pages}
-              <span className="ml-1 text-slate-300 dark:text-slate-600">({pagination.total_items} students)</span>
+              <span className="ml-1 text-slate-300 dark:text-slate-600">
+                ({pagination.total_items} students)
+              </span>
             </span>
 
             <button
               disabled={!pagination.has_next}
-              onClick={() => { setCurrentPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              onClick={() => {
+                setCurrentPage((p) => p + 1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-transform"
             >
               Next <ChevronRight size={16} />

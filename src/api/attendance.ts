@@ -6,9 +6,11 @@ import {
   PaginatedResponse,
   AttendanceFilters,
 } from "@/types";
-import {
-  TodayAttendanceParams,
-  CloseSessionParams,
+import { 
+  TodayAttendanceParams, 
+  TodayAttendanceResponse, 
+  CloseSessionParams, 
+  CloseSessionResponse 
 } from "@/hooks/useAttendance";
 
 export const attendanceApi = {
@@ -28,13 +30,12 @@ export const attendanceApi = {
     return apiClient.get(`/attendance/${queryString ? `?${queryString}` : ""}`);
   },
 
-  // Get today's attendance with pagination
-  getTodayAttendance: async (params?: TodayAttendanceParams) => {
+  // Get today's attendance with pagination and unmarked students
+  getTodayAttendance: async (params?: TodayAttendanceParams): Promise<TodayAttendanceResponse> => {
     const searchParams = new URLSearchParams();
 
     if (params?.page) searchParams.set("page", String(params.page));
-    if (params?.page_size)
-      searchParams.set("page_size", String(params.page_size));
+    if (params?.page_size) searchParams.set("page_size", String(params.page_size));
     if (params?.search) searchParams.set("search", params.search);
     if (params?.status) searchParams.set("status", params.status);
 
@@ -42,16 +43,24 @@ export const attendanceApi = {
     const url = `/attendance/today/${query ? `?${query}` : ""}`;
 
     const response = await apiClient.get(url);
-    return response;
+    return response as TodayAttendanceResponse;
   },
 
-  // Add this new function:
-  closeSession: async (params?: CloseSessionParams) => {
+  // Close session - mark all unmarked as absent
+  closeSession: async (params?: CloseSessionParams): Promise<CloseSessionResponse> => {
     const response = await apiClient.post(
-      "/attendance/close-session/",
-      params ?? {},
+      "/attendance/mark-unmarked-as-absent/",
+      params ?? {}
     );
-    return response;
+    return response as CloseSessionResponse;
+  },
+
+  // Bulk mark attendance
+  bulkMarkAttendance: (data: { 
+    marks: Array<{ student_id: number; status: string; notes?: string }>; 
+    date?: string 
+  }): Promise<{ successful: any[]; failed: any[]; total: number }> => {
+    return apiClient.post("/attendance/bulk-mark/", data);
   },
 
   // Get student attendance with pagination
@@ -65,9 +74,11 @@ export const attendanceApi = {
     if (pageSize) params.append("page_size", pageSize.toString());
     const queryString = params.toString();
     return apiClient.get(
-      `/attendance/student/${studentId}/${queryString ? `?${queryString}` : ""}`,
+      `/attendance/student/${studentId}/${queryString ? `?${queryString}` : ""}`
     );
   },
+
+  // Upsert attendance (create or update)
   upsertAttendance: (data: {
     student: number;
     status: string;
@@ -83,22 +94,29 @@ export const attendanceApi = {
     status: string;
     notes?: string;
     date?: string;
-  }) => {
+  }): Promise<AttendanceRecord> => {
     return apiClient.post("/attendance/", data);
   },
 
   // Bulk create attendance records
-  bulkCreateAttendance: (records: any[], date?: string) => {
+  bulkCreateAttendance: (records: any[], date?: string): Promise<{ 
+    message: string; 
+    created: any[]; 
+    errors: any[];
+    total_processed: number;
+    total_success: number;
+    total_errors: number;
+  }> => {
     return apiClient.post("/attendance/bulk-create/", { records, date });
   },
 
   // Update attendance record
-  updateAttendance: (id: number, data: Partial<AttendanceRecord>) => {
+  updateAttendance: (id: number, data: Partial<AttendanceRecord>): Promise<AttendanceRecord> => {
     return apiClient.patch(`/attendance/${id}/`, data);
   },
 
   // Delete attendance record
-  deleteAttendance: (id: number) => {
+  deleteAttendance: (id: number): Promise<void> => {
     return apiClient.delete(`/attendance/${id}/`);
   },
 
